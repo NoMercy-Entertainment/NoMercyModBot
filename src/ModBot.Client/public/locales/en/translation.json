@@ -1,0 +1,54 @@
+{
+  "auth": {
+    "welcome": "Welcome to {{name}}",
+    "subtitle": "Manage your Twitch community with ease",
+    "login": {
+      "title": "Sign in",
+      "processing": "Processing your authentication",
+      "pleaseSignIn": "Please sign in to continue",
+      "connectingToTwitch": "Connecting to Twitch",
+      "connectWithTwitch": "Connect with Twitch",
+      "loading": "Loading...",
+      "terms": "By connecting, you agree to our",
+      "termsLink": "Terms of Service",
+      "privacyLink": "Privacy Policy",
+      "and": "and",
+      "error": {
+        "authFailed": "Authentication failed"
+      }
+    },
+    "logout": {
+      "title": "Sign out",
+      "message": "Are you sure you want to sign out?",
+      "confirm": "Sign out",
+      "cancel": "Cancel",
+      "loading": "Signing out..."
+    },
+    "validating": "Validating session..."
+  },
+  "layout": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "settings": "Settings",
+    "logout": "Sign out",
+    "closeSidebar": "Close sidebar",
+    "openSidebar": "Open sidebar",
+    "yourProfile" : "Your profile",
+    "welcomeBack": "Welcome back, {{name}}!"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": {
+      "title": "Error",
+      "message": "An error occurred",
+      "retry": "Retry",
+      "cancel": "Cancel"
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "message": "The page you are looking for does not exist",
+    "goHome": "Go back home",
+    "contactSupport": "Contact support"
+  }
+}

@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+    --font-sans: InterVariable, sans-serif;
+}
+
+:root {
+    color-scheme: dark;
+}
+
+body {
+    @apply bg-neutral-950 text-neutral-100;
+}
+
+.dark-scrollbar {
+    scrollbar-color: #4B5563 #1F2937;
+}
+
+.dark-scrollbar::-webkit-scrollbar {
+    width: 16px;
+}
+
+.dark-scrollbar::-webkit-scrollbar-track {
+    background: #1F2937;
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #4B5563;
+    border-radius: 8px;
+    border: 3px solid #1F2937;
+}
+
+.h-available {
+    height: -moz-available;
+    height: 100%;
+    height: -webkit-fill-available;
+    /*height: 100dvh;*/
+}
+
+.w-available {
+    width: -moz-available;
+    width: 100%;
+    width: -webkit-fill-available;
+    /*width: 100dvw;*/
+}
+
+.min-h-available {
+    min-height: -moz-available;
+    min-height: 100%;
+    min-height: -webkit-fill-available;
+    /*min-height: 100dvh;*/
+}
+
+.min-w-available {
+    min-width: -moz-available;
+    min-width: 100%;
+    min-width: -webkit-fill-available;
+    /*min-width: 100dvw;*/
+}
