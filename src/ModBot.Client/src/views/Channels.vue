@@ -1,14 +1,24 @@
 <script setup lang="ts">
+import useServerClient from '@/lib/clients/useServerClient.ts';
+
+import type { Channel } from '@/types/moderation.ts';
+
+import ChannelCard from '@/components/Cards/ChannelCard.vue';
+
+const { data, error, isLoading } = useServerClient<Channel[]>();
 
 </script>
 
 <template>
-  <div class="flex min-h-available items-center justify-center">
-    <div class="w-full max-w-md space-y-8 rounded-lg bg-neutral-800 p-8 shadow-lg">
-      Channels View
-    </div>
+  <template v-if="!isLoading">
+    <ul role="list"
+        class="w-available h-available flex flex-wrap gap-7 p-8 content-start text-neutral-900 dark:text-white">
 
-  </div>
+      <template v-for="channel in data ?? []" :key="channel.id">
+        <ChannelCard :channel="channel" />
+      </template>
+    </ul>
+  </template>
 </template>
 
 <style scoped>

@@ -1,4 +1,4 @@
-import type { ComponentCustomProperties as VueComponentCustomProperties } from '@vue/runtime-core'
+import type { ComponentCustomProperties as VueComponentCustomProperties } from '@vue/runtime-core';
 
 declare module '*.svg'
 declare module '*.scss';
@@ -7,12 +7,12 @@ declare module '*.webp';
 declare module '*.png';
 declare module '*.gif';
 declare module '*.json' {
-	const value: any;
-	export default value;
+  const value: any;
+  export default value;
 }
 
 declare module '@vue/runtime-core' {
-	interface ComponentCustomProperties extends VueComponentCustomProperties {
-		$t: Function<(key?: string, args?: unknown) => string>;
-	}
+  interface ComponentCustomProperties extends VueComponentCustomProperties {
+    $t: Function<(key?: string, args?: unknown) => string>;
+  }
 }

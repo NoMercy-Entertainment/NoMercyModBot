@@ -9,6 +9,7 @@ namespace ModBot.Database.Models;
 [Index(nameof(ModeratorId), nameof(BroadcasterId), IsUnique = true)]
 public class Channel
 {
+    private Uri _link = null!;
     [MaxLength(255)] [JsonProperty("id")] public int Id { get; set; }
 
     [MaxLength(255)]
@@ -19,19 +20,17 @@ public class Channel
     [JsonProperty("broadcaster_name")]
     public string BroadcasterName { get; set; } = string.Empty;
 
-    [JsonProperty("enabled")] public bool Enabled { get; set; }
-
     [MaxLength(255)]
     [ForeignKey(nameof(Broadcaster))]
     [JsonProperty("broadcaster_id")]
-    public string? BroadcasterId { get; set; }
+    public string BroadcasterId { get; set; } = string.Empty;
 
-    [JsonProperty("broadcaster")] public User? Broadcaster { get; set; }
+    [JsonProperty("broadcaster")] public User Broadcaster { get; set; } = null!;
 
     [MaxLength(50)]
     [ForeignKey(nameof(Moderator))]
     [JsonProperty("moderator_id")]
-    public string? ModeratorId { get; set; }
+    public string ModeratorId { get; set; } = string.Empty;
 
-    [JsonProperty("moderator")] public User? Moderator { get; set; }
+    [JsonProperty("moderator")] public User Moderator { get; set; } = null!;
 }

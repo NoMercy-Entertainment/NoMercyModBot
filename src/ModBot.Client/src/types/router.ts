@@ -1,4 +1,4 @@
-import type { RouteRecordRaw } from 'vue-router'
+import type { RouteRecordRaw } from 'vue-router';
 
 type RouteRecordName<T> = T extends { name: string } ? T['name'] : never;
 type RouteRecordPath<T> = T extends { path: string } ? T['path'] : never;

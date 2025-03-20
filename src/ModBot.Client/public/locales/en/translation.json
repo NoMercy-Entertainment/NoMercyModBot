@@ -33,7 +33,7 @@
     "logout": "Sign out",
     "closeSidebar": "Close sidebar",
     "openSidebar": "Open sidebar",
-    "yourProfile" : "Your profile",
+    "yourProfile": "Your profile",
     "welcomeBack": "Welcome back, {{name}}!"
   },
   "common": {
@@ -50,5 +50,35 @@
     "message": "The page you are looking for does not exist",
     "goHome": "Go back home",
     "contactSupport": "Contact support"
+  },
+  "settings": {
+    "title": "Account Settings",
+    "search": "Search",
+    "tabs": {
+      "account": "Account",
+      "notifications": "Notifications"
+    },
+    "personal": {
+      "title": "Personal Information",
+      "subtitle": "This is the information provided by twitch",
+      "displayName": "Display name",
+      "username": "Username"
+    },
+    "display": {
+      "title": "Display options",
+      "subtitle": "Choose how you want to view the site. These settings will be saved to your account.",
+      "timezone": "Timezone",
+      "save": "Save"
+    },
+    "delete": {
+      "title": "Delete account",
+      "subtitle": "No longer want to use our service? All non-public data will be deleted.",
+      "button": "Delete my account"
+    },
+    "dialog": {
+      "subtitle": "Are you sure you want to delete your account? \nThis action is not reversible.",
+      "cancel": "Cancel",
+      "confirm": "Yes, delete my account"
+    }
   }
 }

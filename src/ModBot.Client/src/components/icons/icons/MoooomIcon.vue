@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { defineComponent, type PropType } from "vue";
+import { defineComponent, type PropType } from 'vue';
 
-import { twMerge } from "tailwind-merge";
+import { twMerge } from 'tailwind-merge';
 import { MoooomIcons } from '@Icons/icons';
 
 import icons from '/resources/mooooom-icons.svg';
@@ -9,13 +9,13 @@ import icons from '/resources/mooooom-icons.svg';
 defineProps({
   icon: {
     type: String as PropType<keyof typeof MoooomIcons>,
-    required: true,
+    required: true
   },
   className: {
     type: String,
     required: false,
-    default: '',
-  },
+    default: ''
+  }
 });
 
 defineComponent({

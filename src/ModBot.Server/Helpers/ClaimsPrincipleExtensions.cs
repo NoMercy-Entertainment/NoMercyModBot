@@ -59,6 +59,9 @@ public static class ClaimsPrincipleExtensions
             .FindFirst(ClaimTypes.NameIdentifier)?
             .Value;
 
-        return userId is null ? null : Globals.DbContext.Users.FirstOrDefault(user => user.Id == userId);
+        return userId is null
+            ? null
+            : Globals.DbContext.Users
+                .FirstOrDefault(user => user.Id == userId);
     }
 }

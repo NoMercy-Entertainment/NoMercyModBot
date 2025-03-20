@@ -68,17 +68,17 @@ public static class TokenStore
     {
         return Protector.Unprotect(user.AccessToken);
     }
-    
+
     public static string GetRefreshToken(User user)
     {
         return Protector.Unprotect(user.RefreshToken);
     }
-    
+
     public static string? GetToken(string accessToken)
     {
         return Protector.Unprotect(accessToken);
     }
-    
+
     public static string EncryptToken(string token)
     {
         return Protector.Protect(token);

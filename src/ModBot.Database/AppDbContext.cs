@@ -74,7 +74,7 @@ public class AppDbContext : DbContext
             .WithMany(u => u.ModeratedChannels)
             .HasForeignKey(bt => bt.ModeratorId)
             .OnDelete(DeleteBehavior.Cascade);
-
+        
         base.OnModelCreating(modelBuilder);
     }
 

@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
-import { user, initializeUserSession } from "@/store/user";
+import { onMounted } from 'vue';
+import { initializeUserSession } from '@/store/user';
 
 import AppLayout from '@/components/AppLayout.vue';
-
-const isAuthenticated = computed(() => !!user.value?.accessToken);
 
 onMounted(async () => {
   await initializeUserSession();
@@ -12,8 +10,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <AppLayout :is-authenticated="isAuthenticated" />
+  <AppLayout />
 </template>
 
-<style scoped lang="scss"> 
+<style scoped lang="scss">
 </style>

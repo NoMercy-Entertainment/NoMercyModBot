@@ -6,18 +6,21 @@ using ModBot.Server.Controllers;
 using ModBot.Server.Helpers;
 using RestSharp;
 using TwitchLib.Api;
-using TwitchLib.Api.Core.Enums;
 using TwitchLib.Api.Helix;
 
 namespace ModBot.Server.Providers.Twitch;
 
-public class ApiClient
+public class TwitchApiClient
 {
-    private static readonly List<TwitchAPI> Clients = [];
+    private static readonly Dictionary<string, TwitchAPI> Clients = [];
 
-    public ApiClient(User user)
+    public TwitchApiClient(User user)
     {
-        if (Clients.Any(client => client.Settings.AccessToken == user.AccessToken)) return;
+        if (Clients.Any(client => client.Key == user.Id))
+        {
+            Clients.First(twitchApi => twitchApi.Key == user.Id).Value.Settings.AccessToken = user.AccessToken;
+            return;
+        }
 
         TwitchAPI client = new()
         {
@@ -30,22 +33,22 @@ public class ApiClient
             }
         };
 
-        Clients.Add(client);
+        Clients.Add(user.Id, client);
     }
 
-    public Helix GetHelixClient(User user)
+    public static Helix GetHelixClient(User user)
     {
-        return Clients.First(twitchApi => twitchApi.Settings.AccessToken == user.AccessToken).Helix;
+        return Clients.First(twitchApi => twitchApi.Key == user.Id).Value.Helix;
     }
 
     public void RemoveClient(User user)
     {
-        Clients.Remove(Clients.First(client => client.Settings.AccessToken == user.AccessToken));
+        Clients.Remove(user.Id);
     }
 
     public void UpdateClient(User user)
     {
-        TwitchAPI client = Clients.First(client => client.Settings.AccessToken == user.AccessToken);
+        TwitchAPI client = Clients.First(client => client.Key == user.Id).Value;
         client.Settings.AccessToken = user.AccessToken;
     }
 
@@ -59,7 +62,7 @@ public class ApiClient
 
         return await client.ExecuteAsync(request);
     }
-    
+
     public static async Task<UserInfo?> FetchUserInfo(string accessToken)
     {
         RestClient client = new(Globals.TwitchApiUrl);
@@ -73,7 +76,7 @@ public class ApiClient
         UserInfoResponse? userInfoResponse = response.Content?.FromJson<UserInfoResponse>();
         return userInfoResponse?.Data.FirstOrDefault();
     }
-    
+
     // local refresh token function
     public static async Task<TokenResponse?> RefreshToken(User user)
     {
@@ -88,9 +91,9 @@ public class ApiClient
         if (!response.IsSuccessful) return null;
 
         TokenResponse? refreshToken = response.Content?.FromJson<TokenResponse>();
-        
+
         if (refreshToken == null) return null;
-        
+
         User updateUser = new()
         {
             Id = user.Id,
@@ -98,7 +101,7 @@ public class ApiClient
             RefreshToken = refreshToken.RefreshToken,
             TokenExpiry = DateTime.UtcNow.AddSeconds(refreshToken.ExpiresIn)
         };
-        
+
         AppDbContext dbContext = new();
         await dbContext.Users.Upsert(updateUser)
             .On(u => u.Id)
@@ -109,7 +112,7 @@ public class ApiClient
                 TokenExpiry = newUser.TokenExpiry
             })
             .RunAsync();
-        
+
         return refreshToken;
     }
 }

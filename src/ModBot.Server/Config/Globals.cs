@@ -38,7 +38,7 @@ public static class Globals
         "user:read:moderated_channels",
         "user:write:chat"
     ];
-    
+
     public static List<AuthScopes> TwitchScopes { get; set; } =
     [
         AuthScopes.Chat_Edit,
@@ -59,5 +59,4 @@ public static class Globals
 
 
     public static readonly AppDbContext DbContext = new();
-
 }

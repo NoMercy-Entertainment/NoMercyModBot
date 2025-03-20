@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import AppLogoSquare from "@/components/icons/icons/AppLogoSquare.vue";
+import AppLogoSquare from '@/components/icons/icons/AppLogoSquare.vue';
 import Backdrop from '@/components/Backdrop.vue';
 
 </script>
@@ -12,7 +12,7 @@ import Backdrop from '@/components/Backdrop.vue';
       <div class="text-center flex flex-col gap-6 justify-center items-center">
         <AppLogoSquare class="mx-auto w-24 h-auto" />
         <div class="text-center flex flex-col gap-4 justify-center items-center">
-          <slot/>
+          <slot />
         </div>
       </div>
     </div>
