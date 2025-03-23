@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import AppLogoSquare from '@/components/icons/icons/AppLogoSquare.vue';
+import AppLogoSquare from '@/components/icons/AppLogoSquare.vue';
 import authService from '@/services/authService.ts';
 
 const router = useRouter();
@@ -11,7 +11,7 @@ const isLoggingOut = ref(false);
 const handleLogout = async () => {
   isLoggingOut.value = true;
   await authService.logout();
-  await router.push({ name: 'Unauthenticated' });
+  await router.push({ name: 'Login' });
 };
 
 const handleCancel = () => {

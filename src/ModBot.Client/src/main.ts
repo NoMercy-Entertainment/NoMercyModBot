@@ -5,6 +5,7 @@ import I18NextVue from 'i18next-vue';
 import { VueQueryPlugin } from '@tanstack/vue-query';
 
 import router from './router';
+import '@/router/routes.ts';
 
 import i18next from '@/config/i18Next.ts';
 import { queryClient } from '@/config/tanstack-query.ts';

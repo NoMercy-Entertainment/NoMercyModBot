@@ -34,7 +34,7 @@ public class TwitchPubSubClient
     private static void OnListenResponse(object? sender, OnListenResponseArgs e)
     {
         if (!e.Successful)
-            throw new Exception($"Failed to listen! Response: {e.Response}");
+            throw new($"Failed to listen! Response: {e.Response}");
     }
 
     private static void OnStreamUp(object? sender, OnStreamUpArgs e)

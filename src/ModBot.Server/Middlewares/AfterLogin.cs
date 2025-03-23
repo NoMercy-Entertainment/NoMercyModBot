@@ -19,8 +19,18 @@ public class AfterLogin
     public async Task Invoke(User user)
     {
         _ = new TwitchApiClient(user);
+        
         await GetModeratorChannels(user);
         await GetBlockedTerms(user);
+        
+        // Join your own channel
+        _ = new TwitchLibClient(user: user, broadcaster: user);
+                
+        foreach (Channel channel in user.ModeratorChannels)
+        {
+            // Join the broadcaster's channel
+            _ = new TwitchLibClient(user: user, broadcaster: channel.Broadcaster);
+        }
     }
 
     private static async Task GetModeratorChannels(User user)
@@ -37,10 +47,14 @@ public class AfterLogin
             {
                 BroadcasterId = c.Id,
                 ModeratorId = user.Id,
-                BroadcasterLogin = c.BroadCasterLogin,
-                BroadcasterName = c.BroadcasterName,
             })
             .ToList();
+        
+        channels.Add(new()
+        {
+            BroadcasterId = user.Id,
+            ModeratorId = user.Id
+        });
 
         Helix client = TwitchApiClient.GetHelixClient(user);
         
@@ -100,8 +114,12 @@ public class AfterLogin
             blockedTerms.AddRange(t);
         }
 
-        List<User> mods = await GetUsers(client, fetchModerators);
-        await StoreUsers(mods);
+        if (fetchModerators.Count > 0)
+        {
+            List<User> mods = await GetUsers(client, fetchModerators);
+            await StoreUsers(mods);
+        }
+
         await StoreBlockedTerms(blockedTerms);
     }
 
@@ -127,7 +145,8 @@ public class AfterLogin
                 OfflineImageUrl = newUser.OfflineImageUrl,
                 Color = string.IsNullOrEmpty(color?.Color) 
                     ? "#9146FF" 
-                    : color?.Color,
+                    : color.Color,
+                BroadcasterType = newUser.BroadcasterType,
             };
             mods.Add(mod);
         }
@@ -149,6 +168,7 @@ public class AfterLogin
                 ProfileImageUrl = incoming.ProfileImageUrl,
                 OfflineImageUrl = incoming.OfflineImageUrl,
                 Color = incoming.Color,
+                BroadcasterType = incoming.BroadcasterType,
             })
             .RunAsync();
     }
@@ -162,8 +182,6 @@ public class AfterLogin
             {
                 BroadcasterId = incoming.BroadcasterId,
                 ModeratorId = incoming.ModeratorId,
-                BroadcasterLogin = incoming.BroadcasterLogin,
-                BroadcasterName = incoming.BroadcasterName,
             })
             .RunAsync();
     }

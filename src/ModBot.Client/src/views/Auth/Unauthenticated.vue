@@ -24,7 +24,7 @@ const startAuth = () => {
       <button
         @click="startAuth"
         :disabled="isLoading"
-        class="group relative flex gap-2 justify-between w-full items-center rounded-md bg-violet-700 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:ring-offset-2 disabled:opacity-50"
+        class="group relative flex gap-2 justify-between w-full items-center rounded-md bg-theme-700 px-4 py-3 text-sm font-semibold text-white hover:bg-theme-600 focus:outline-none focus:ring-2 focus:ring-theme-600 focus:ring-offset-2 disabled:opacity-50"
       >
         <span class="flex items-center">
           <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
@@ -42,11 +42,11 @@ const startAuth = () => {
 
     <div class="mt-6 text-center text-sm text-neutral-400">
       {{ $t('auth.login.terms') }}<br />
-      <RouterLink :to="routePaths.terms_of_service" class="font-medium text-violet-500 hover:text-violet-300">
+      <RouterLink :to="routePaths.terms_of_service" class="font-medium text-theme-500 hover:text-theme-300">
         {{ $t('auth.login.termsLink') }}
       </RouterLink>
       {{ $t('auth.login.and') }}
-      <RouterLink :to="routePaths.privacy_policy" class="font-medium text-violet-500 hover:text-violet-300">
+      <RouterLink :to="routePaths.privacy_policy" class="font-medium text-theme-500 hover:text-theme-300">
         {{ $t('auth.login.privacyLink') }}
       </RouterLink>
     </div>

@@ -12,9 +12,13 @@ export const user = ref<User>(<User>{
   username: localStorage.getItem('username') || '',
   display_name: localStorage.getItem('display_name') || '',
   profile_image_url: localStorage.getItem('profile_image_url') || '',
+  offline_image_url: localStorage.getItem('offline_image_url') || '',
+  color: localStorage.getItem('color') || '',
   timezone: localStorage.getItem('timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone,
   locale: localStorage.getItem('locale') || Intl.DateTimeFormat().resolvedOptions().locale
 });
+
+document.documentElement.style.setProperty('--theme', user.value.color);
 
 export const isInitialized = ref(false);
 
@@ -27,8 +31,12 @@ watch(user, (newUser) => {
   localStorage.setItem('username', newUser.username);
   localStorage.setItem('display_name', newUser.display_name);
   localStorage.setItem('profile_image_url', newUser.profile_image_url);
+  localStorage.setItem('offline_image_url', newUser.offline_image_url);
+  localStorage.setItem('color', newUser.color);  
   localStorage.setItem('timezone', newUser.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
   localStorage.setItem('locale', newUser.locale || Intl.DateTimeFormat().resolvedOptions().locale);
+
+  document.documentElement.style.setProperty('--theme', newUser.color);
 });
 
 export const storeTwitchUser = (twitchUser: User) => {
@@ -43,8 +51,12 @@ export const clearUserSession = () => {
   localStorage.removeItem('username');
   localStorage.removeItem('display_name');
   localStorage.removeItem('profile_image_url');
+  localStorage.removeItem('offline_image_url');
+  localStorage.removeItem('color');
   localStorage.removeItem('timezone');
   localStorage.removeItem('locale');
+  
+  document.documentElement.style.removeProperty('--theme');
 };
 
 export const initializeUserSession = async () => {
@@ -53,11 +65,13 @@ export const initializeUserSession = async () => {
       return;
     }
 
-    await authService.validateSession();
+    const data = await authService.validateSession();
+    storeTwitchUser(data.user);
+    
   } catch (error) {
     console.error(error);
     clearUserSession();
-    await router.push({ name: 'Unauthenticated' });
+    await router.push({ name: 'Login' });
   } finally {
     isInitialized.value = true;
   }

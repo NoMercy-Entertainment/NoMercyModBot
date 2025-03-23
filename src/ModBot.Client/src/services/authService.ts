@@ -3,7 +3,7 @@ import axios from 'axios';
 import type { User } from '@/types/auth.ts';
 
 import serverClient from '@/lib/clients/serverClient.ts';
-import { clearUserSession, user } from '@/store/user.ts';
+import { clearUserSession, storeTwitchUser, user } from '@/store/user.ts';
 
 class AuthService {
   private refreshTimer: number | null = null;
@@ -19,7 +19,15 @@ class AuthService {
     const timeUntilRefresh = expiry - now - this.REFRESH_BUFFER;
 
     if (timeUntilRefresh > 0) {
-      this.refreshTimer = window.setTimeout(() => this.refreshToken(), timeUntilRefresh);
+      this.refreshTimer = window.setTimeout(async () => {
+        const response = await this.refreshToken();
+        
+        storeTwitchUser(response.user);
+        
+        if (response.user.token_expiry) {
+          this.scheduleTokenRefresh(response.user.token_expiry);
+        }
+      }, timeUntilRefresh);
     }
   }
 
@@ -63,12 +71,8 @@ class AuthService {
 
   async refreshToken(): Promise<{ user: User }> {
     const response = await serverClient().post<{ user: User }>('auth/refresh', {
-      refreshToken: localStorage.getItem('refresh_token')
+      refresh_token: localStorage.getItem('refresh_token')
     });
-
-    if (response.data.user.token_expiry) {
-      this.scheduleTokenRefresh(response.data.user.token_expiry);
-    }
 
     return response.data;
   }

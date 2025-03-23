@@ -5,6 +5,7 @@ import authService from '@/services/authService';
 import { storeTwitchUser, user } from '@/store/user.ts';
 
 import LoadingScreen from '@/components/LoadingScreen.vue';
+import { routePaths } from '@/router/routes.ts';
 
 const router = useRouter();
 const route = useRoute();
@@ -13,6 +14,7 @@ const errorMessage = ref('');
 
 const startAuth = () => {
   if (isLoading.value) return;
+  errorMessage.value = '';
   isLoading.value = true;
   window.location.href = '/api/auth/login';
 };
@@ -89,7 +91,7 @@ const isProcessingAuth = computed(() => {
 
     <div v-if="isLoading" class="mt-8 text-center">
       <div
-        class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-violet-400 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+        class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-theme-400 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
       <p class="mt-4 text-sm text-neutral-400">
         {{ $t('auth.login.connectingToTwitch') }}...</p>
     </div>
@@ -98,7 +100,7 @@ const isProcessingAuth = computed(() => {
       <button
         @click="startAuth"
         :disabled="isProcessingAuth"
-        class="group relative flex w-full justify-center rounded-md bg-violet-600 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 disabled:opacity-50"
+        class="group relative flex w-full justify-center rounded-md bg-theme-600 px-4 py-3 text-sm font-semibold text-white hover:bg-theme-500 focus:outline-none focus:ring-2 focus:ring-theme-500 focus:ring-offset-2 disabled:opacity-50"
       >
         <span class="absolute inset-y-0 left-0 flex items-center pl-3">
           <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
@@ -108,6 +110,17 @@ const isProcessingAuth = computed(() => {
         </span>
         <span>{{ $t('auth.login.connectWithTwitch') }}</span>
       </button>
+    </div>
+
+    <div class="mt-6 text-center text-sm text-neutral-400">
+      {{ $t('auth.login.terms') }}<br />
+      <RouterLink :to="routePaths.terms_of_service" class="font-medium text-theme-500 hover:text-theme-300">
+        {{ $t('auth.login.termsLink') }}
+      </RouterLink>
+      {{ $t('auth.login.and') }}
+      <RouterLink :to="routePaths.privacy_policy" class="font-medium text-theme-500 hover:text-theme-300">
+        {{ $t('auth.login.privacyLink') }}
+      </RouterLink>
     </div>
   </LoadingScreen>
 </template>

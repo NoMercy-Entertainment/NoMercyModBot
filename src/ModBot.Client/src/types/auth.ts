@@ -1,3 +1,5 @@
+import type { ChatMessage } from '@/types/moderation.ts';
+
 export interface User {
   access_token?: string;
   refresh_token?: string;
@@ -10,4 +12,8 @@ export interface User {
   color: string;
   locale: string | null;
   timezone: string | null;
+  link: string;
+  enabled: boolean;
+  broadcaster_chat_messages: ChatMessage[];
+  moderator_chat_messages: ChatMessage[];
 }

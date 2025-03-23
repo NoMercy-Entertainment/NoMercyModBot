@@ -2,10 +2,30 @@
 
 @theme {
     --font-sans: InterVariable, sans-serif;
+
+    --theme: hsl(263, 69.30%, 31.37%);
+
+    --color-theme-50: hsl(from var(--theme) h 100% 92.2%);
+    --color-theme-100: hsl(from var(--theme) h 100% 87.6%);
+    --color-theme-200: hsl(from var(--theme) h 100% 82.9%);
+    --color-theme-300: hsl(from var(--theme) h 100% 78.4%);
+    --color-theme-400: hsl(from var(--theme) h 100% 73.7%);
+    --color-theme-500: hsl(from var(--theme) h 100% 66.7%);
+    --color-theme-600: hsl(from var(--theme) h 100% 59.4%);
+    --color-theme-700: hsl(from var(--theme) h 100% 52.2%);
+    --color-theme-800: hsl(from var(--theme) h 100% 44.9%);
+    --color-theme-900: hsl(from var(--theme) h 100% 31.37%);
+    --color-theme-950: hsl(from var(--theme) h 100% 20%);
+
+    --color-logo-back: hsl(from var(--theme) h s calc(l / 1.3));
 }
 
 :root {
+    interpolate-size: allow-keywords;
+    
     color-scheme: dark;
+    
+    --theme: hsl(263, 69.30%, 42.20%);
 }
 
 body {
@@ -13,7 +33,7 @@ body {
 }
 
 .dark-scrollbar {
-    scrollbar-color: #4B5563 #1F2937;
+    scrollbar-color:  var(--color-neutral-500)  var(--color-neutral-800);
 }
 
 .dark-scrollbar::-webkit-scrollbar {
@@ -30,30 +50,47 @@ body {
     border: 3px solid #1F2937;
 }
 
-.h-available {
-    height: -moz-available;
-    height: 100%;
-    height: -webkit-fill-available;
-    /*height: 100dvh;*/
-}
+@layer components {
 
-.w-available {
-    width: -moz-available;
-    width: 100%;
-    width: -webkit-fill-available;
-    /*width: 100dvw;*/
-}
+    .h-available {
+        height: -moz-available;
+        height: 100%;
+        height: -webkit-fill-available;
+        /*height: 100dvh;*/
+    }
 
-.min-h-available {
-    min-height: -moz-available;
-    min-height: 100%;
-    min-height: -webkit-fill-available;
-    /*min-height: 100dvh;*/
-}
+    .w-available {
+        width: -moz-available;
+        width: 100%;
+        width: -webkit-fill-available;
+        /*width: 100dvw;*/
+    }
 
-.min-w-available {
-    min-width: -moz-available;
-    min-width: 100%;
-    min-width: -webkit-fill-available;
-    /*min-width: 100dvw;*/
+    .min-h-available {
+        min-height: -moz-available;
+        min-height: 100%;
+        min-height: -webkit-fill-available;
+        /*min-height: 100dvh;*/
+    }
+
+    .min-w-available {
+        min-width: -moz-available;
+        min-width: 100%;
+        min-width: -webkit-fill-available;
+        /*min-width: 100dvw;*/
+    }
+
+    .max-h-available {
+        max-height: -moz-available;
+        max-height: 100%;
+        max-height: -webkit-fill-available;
+        /*max-height: 100dvh;*/
+    }
+
+    .max-w-available {
+        max-width: -moz-available;
+        max-width: 100%;
+        max-width: -webkit-fill-available;
+        /*max-width: 100dvw;*/
+    }
 }

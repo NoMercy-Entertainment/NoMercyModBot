@@ -60,14 +60,14 @@ const confirmDelete = async () => {
           <button v-for="item in secondaryNavigation" :key="item.name"
                   @click="currentTab = item.name"
                   :class="[currentTab == item.name 
-                ? 'border-violet-500 text-violet-600' 
+                ? 'border-theme-500 text-theme-600' 
                 : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-400', 
                 'group inline-flex items-center border-b-2 px-1 py-4 text-sm font-medium transition-colors duration-100']"
                   :aria-current="currentTab ? 'page' : undefined">
 
             <component :is="item.icon"
                        :class="[currentTab == item.name 
-                          ? 'text-violet-500' 
+                          ? 'text-theme-500' 
                           : 'text-gray-500 group-hover:text-gray-400', 
                           'mr-2 -ml-0.5 size-5 transition-colors duration-100'
                        ]"
@@ -104,7 +104,7 @@ const confirmDelete = async () => {
                 </label>
                 <div class="mt-2">
                   <input disabled type="text" name="display-name" id="display-name" autocomplete="display-name"
-                         class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-neutral-500 focus:outline-2 focus:-outline-offset-2 focus:outline-violet-500 sm:text-sm/6"
+                         class="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-white outline-1 -outline-offset-1 outline-white/10 placeholder:text-neutral-500 focus:outline-2 focus:-outline-offset-2 focus:outline-theme-500 sm:text-sm/6"
                          :value="user.display_name" />
                 </div>
               </div>
@@ -115,7 +115,7 @@ const confirmDelete = async () => {
                 </label>
                 <div class="mt-2">
                   <div
-                    class="flex items-center rounded-md bg-white/5 pl-3 outline-1 -outline-offset-1 outline-white/10 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-violet-500">
+                    class="flex items-center rounded-md bg-white/5 pl-3 outline-1 -outline-offset-1 outline-white/10 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-theme-500">
                     <div class="shrink-0 text-base text-neutral-500 select-none sm:text-sm/6">twitch.tv/</div>
                     <input disabled type="text" name="username" id="username"
                            class="block min-w-0 grow bg-transparent py-1.5 pr-3 pl-1 text-base text-white placeholder:text-neutral-500 focus:outline-none sm:text-sm/6"
@@ -146,7 +146,7 @@ const confirmDelete = async () => {
                 </label>
                 <div class="mt-2 grid grid-cols-1">
                   <select id="timezone" name="timezone"
-                          class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white/5 py-1.5 pr-8 pl-3 text-base text-white outline-1 -outline-offset-1 outline-white/10 *:bg-neutral-800 focus:outline-2 focus:-outline-offset-2 focus:outline-violet-500 sm:text-sm/6">
+                          class="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white/5 py-1.5 pr-8 pl-3 text-base text-white outline-1 -outline-offset-1 outline-white/10 *:bg-neutral-800 focus:outline-2 focus:-outline-offset-2 focus:outline-theme-500 sm:text-sm/6">
                     <template v-for="timezone in timezones" :key="timezone">
                       <option :value="timezone" :selected="timezone.timezone == user.timezone">
                         {{ timezone.name }}
@@ -163,7 +163,7 @@ const confirmDelete = async () => {
 
             <div class="mt-8 flex">
               <button type="submit"
-                      class="rounded-md bg-violet-700 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-violet-600 active:bg-violet-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600">
+                      class="rounded-md bg-theme-700 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-theme-600 active:bg-theme-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-600">
                 {{ $t('settings.display.save') }}
               </button>
             </div>

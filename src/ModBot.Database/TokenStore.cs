@@ -5,7 +5,7 @@ using ModBot.Database.Models;
 
 namespace ModBot.Database;
 
-public static class TokenStore
+public class TokenStore
 {
     private static readonly IConfiguration Configuration = new ConfigurationBuilder()
         .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
@@ -74,12 +74,12 @@ public static class TokenStore
         return Protector.Unprotect(user.RefreshToken);
     }
 
-    public static string? GetToken(string accessToken)
+    public static string? DecryptToken(string? accessToken)
     {
         return Protector.Unprotect(accessToken);
     }
 
-    public static string EncryptToken(string token)
+    public static string EncryptToken(string? token)
     {
         return Protector.Protect(token);
     }

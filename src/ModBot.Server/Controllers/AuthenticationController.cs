@@ -40,60 +40,22 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
         if (response.Content is null) return BadRequestResponse("Invalid response from Twitch.");
 
         TokenResponse? tokenResponse = response.Content.FromJson<TokenResponse>();
-        if (tokenResponse == null) return BadRequestResponse(response.Content);
-
-        UserInfo? userInfo = await TwitchApiClient.FetchUserInfo(tokenResponse.AccessToken);
-        if (userInfo == null) return BadRequestResponse("Failed to fetch user information.");
-
-        string countryCode = HttpContext.Request.Headers["CF-IPCountry"]!;
+        if (tokenResponse is null) return BadRequestResponse(response.Content);
         
-        IEnumerable<string>? zoneIds = TzdbDateTimeZoneSource.Default.ZoneLocations?
-            .Where(x => x.CountryCode == countryCode)
-            .Select(x => x.ZoneId)
-            .ToList();
+        string countryCode = HttpContext.Request.Headers["CF-IPCountry"].ToString();
+        
+        User user = await TwitchApiClient.FetchUser(tokenResponse, countryCode);
 
-        User user = new()
+        try
         {
-            Id = userInfo.Id,
-            Username = userInfo.Login,
-            DisplayName = userInfo.DisplayName,
-            Description = userInfo.Description,
-            ProfileImageUrl = userInfo.ProfileImageUrl,
-            OfflineImageUrl = userInfo.OfflineImageUrl,
-            AccessToken = tokenResponse.AccessToken,
-            RefreshToken = tokenResponse.RefreshToken,
-            Timezone = zoneIds?.FirstOrDefault(),
-            TokenExpiry = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
-        };
-        
-        
-        _ = new TwitchApiClient(user);
-        Helix client = TwitchApiClient.GetHelixClient(user);
-        GetUserChatColorResponse colors = await client.Chat.GetUserChatColorAsync([userInfo.Id]);
-        
-        string color = colors.Data.First().Color;
-        
-        user.Color = string.IsNullOrEmpty(color)
-            ? "#9146FF"
-            : color;
-
-        await dbContext.Users.Upsert(user)
-            .On(u => u.Id)
-            .WhenMatched((oldUser, newUser) => new()
-            {
-                Username = newUser.Username,
-                DisplayName = newUser.DisplayName,
-                ProfileImageUrl = newUser.ProfileImageUrl,
-                OfflineImageUrl = newUser.OfflineImageUrl,
-                Color = newUser.Color,
-                _accessToken = newUser._accessToken,
-                _refreshToken = newUser._refreshToken,
-                TokenExpiry = newUser.TokenExpiry
-            })
-            .RunAsync();
-
-        AfterLogin afterLogin = new();
-        await afterLogin.Invoke(user);
+            AfterLogin afterLogin = new();
+            await afterLogin.Invoke(user);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return BadRequestResponse(e.Message);
+        }
 
         return Ok(new
         {
@@ -106,19 +68,29 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
     public async Task<IActionResult> ValidateSession()
     {
         User? currentUser = User.User();
-        if (currentUser == null) return UnauthenticatedResponse("User not logged in.");
+        if (currentUser is null) return UnauthenticatedResponse("User not logged in.");
+        
+        string authorizationHeader = Request.Headers["Authorization"].First() ?? throw new InvalidOperationException();
+        string accessToken = authorizationHeader["Bearer ".Length..];
 
         try
         {
             RestClient client = new(Globals.TwitchAuthUrl);
             RestRequest request = new("validate");
-            request.AddHeader("Authorization", $"Bearer {currentUser.AccessToken}");
+            request.AddHeader("Authorization", $"Bearer {accessToken}");
 
             RestResponse response = await client.ExecuteAsync(request);
             if (!response.IsSuccessful) return BadRequestResponse(response.Content);
             if (response.Content is null) return BadRequestResponse("Invalid response from Twitch.");
-
-            return Ok();
+            
+            TokenResponse? tokenResponse = response.Content.FromJson<TokenResponse>();
+            if (tokenResponse is null) return BadRequestResponse("Failed to get a new token");
+            
+            return Ok(new
+            {
+                Message = "Session validated successfully",
+                User = new UserWithTokenDto(currentUser),
+            });
         }
         catch
         {
@@ -126,21 +98,30 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
         }
     }
 
-    [HttpGet("refresh")]
-    public async Task<IActionResult> Refresh()
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest data)
     {
         User? currentUser = User.User();
-        if (currentUser == null) return UnauthenticatedResponse("User not logged in.");
+        if (currentUser is null) return UnauthenticatedResponse("User not logged in.");
+        
+        currentUser.RefreshToken = data.RefreshToken;
 
         try
         {
             TokenResponse? tokenResponse = await TwitchApiClient.RefreshToken(currentUser);
-            if (tokenResponse == null) return UnauthorizedResponse("Failed to refresh token.");
+            if (tokenResponse is null) return UnauthorizedResponse("Failed to refresh token.");
+            
+            User user = await dbContext.Users
+                .FirstAsync(u => u.Id == currentUser.Id);
+            user.AccessToken = tokenResponse.AccessToken;
+            user.RefreshToken = tokenResponse.RefreshToken;
+            user.TokenExpiry = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn);
+            await dbContext.SaveChangesAsync();
 
             return Ok(new
             {
-                Message = "Moderator logged in successfully",
-                User = new UserWithTokenDto(currentUser, tokenResponse),
+                Message = "Token refreshed successfully",
+                User = new UserWithTokenDto(user, tokenResponse),
             });
         }
         catch
@@ -153,7 +134,7 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
     public async Task<IActionResult> DeleteAccount()
     {
         User? currentUser = User.User();
-        if (currentUser == null) return UnauthenticatedResponse("User not logged in.");
+        if (currentUser is null) return UnauthenticatedResponse("User not logged in.");
 
         try
         {
@@ -167,14 +148,14 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
 
             User user = await dbContext.Users
                 .Include(x => x.BroadcasterChannels)
-                .Include(x => x.ModeratedChannels)
+                .Include(x => x.ModeratorChannels)
                 .Include(x => x.BroadcasterBlockedTerms)
                 .Include(x => x.ModeratorBlockedTerms)
                 .FirstAsync(u => u.Id == currentUser.Id);
 
             // Remove relationships explicitly
             List<Channel> broadcasterChannels = user.BroadcasterChannels.ToList();
-            List<Channel> moderatedChannels = user.ModeratedChannels.ToList();
+            List<Channel> moderatedChannels = user.ModeratorChannels.ToList();
             List<BlockedTerm> broadcasterTerms = user.BroadcasterBlockedTerms.ToList();
             List<BlockedTerm> moderatorTerms = user.ModeratorBlockedTerms.ToList();
 
@@ -213,8 +194,8 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
     [HttpGet("authorize")]
     public async Task<IActionResult> Authorize()
     {
-        RestClient client = new($"{Globals.TwitchAuthUrl}/device");
-        RestRequest request = new("", Method.Post);
+        RestClient client = new(Globals.TwitchAuthUrl);
+        RestRequest request = new("device", Method.Post);
         request.AddParameter("client_id", Globals.TwitchClientId);
         request.AddParameter("scopes", string.Join(' ', Globals.Scopes));
 
@@ -224,7 +205,7 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
         if (response.Content is null) return BadRequestResponse("Invalid response from Twitch.");
 
         DeviceCodeResponse? deviceCodeResponse = response.Content.FromJson<DeviceCodeResponse>();
-        if (deviceCodeResponse == null) return BadRequestResponse(response.Content);
+        if (deviceCodeResponse is null) return BadRequestResponse(response.Content);
 
         return Ok(new
         {
@@ -251,11 +232,11 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
         if (response.Content is null) return BadRequestResponse("Invalid response from Twitch.");
 
         TokenResponse? tokenResponse = response.Content.FromJson<TokenResponse>();
-        if (tokenResponse == null) return BadRequestResponse(response.Content);
+        if (tokenResponse is null) return BadRequestResponse(response.Content);
 
         // Fetch user info from Twitch
         UserInfo? userInfo = await TwitchApiClient.FetchUserInfo(tokenResponse.AccessToken);
-        if (userInfo == null) return BadRequestResponse("Failed to fetch user information.");
+        if (userInfo is null) return BadRequestResponse("Failed to fetch user information.");
         
         User user = new()
         {
@@ -265,6 +246,7 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
             Description = userInfo.Description,
             ProfileImageUrl = userInfo.ProfileImageUrl,
             OfflineImageUrl = userInfo.OfflineImageUrl,
+            BroadcasterType = userInfo.BroadcasterType,
             AccessToken = tokenResponse.AccessToken,
             RefreshToken = tokenResponse.RefreshToken,
             TokenExpiry = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
@@ -288,8 +270,9 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
                 ProfileImageUrl = newUser.ProfileImageUrl,
                 OfflineImageUrl = newUser.OfflineImageUrl,
                 Color = newUser.Color,
-                _accessToken = newUser._accessToken,
-                _refreshToken = newUser._refreshToken,
+                BroadcasterType = newUser.BroadcasterType,
+                AccessToken = newUser.AccessToken,
+                RefreshToken = newUser.RefreshToken,
                 TokenExpiry = newUser.TokenExpiry
             })
             .RunAsync();
@@ -308,6 +291,11 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
 public class DeviceCodeRequest
 {
     [JsonProperty("device_code")] public string DeviceCode { get; set; } = string.Empty;
+}
+
+public class RefreshRequest
+{
+    [JsonProperty("refresh_token")] public string RefreshToken { get; set; } = null!;
 }
 
 public class DeviceCodeResponse

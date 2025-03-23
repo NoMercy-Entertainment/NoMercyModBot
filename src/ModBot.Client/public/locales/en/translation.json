@@ -80,5 +80,11 @@
       "cancel": "Cancel",
       "confirm": "Yes, delete my account"
     }
+  },
+  "chat": {
+    "placeholder": "Send a message",
+    "send": "Chat",
+    "settings": "Settings",
+    "channelPoints": "Power-ups and rewards"
   }
 }

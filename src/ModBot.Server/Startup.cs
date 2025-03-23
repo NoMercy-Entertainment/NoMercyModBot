@@ -1,11 +1,15 @@
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Primitives;
 using ModBot.Database;
+using ModBot.Database.Models;
 using ModBot.Server.Config;
 using ModBot.Server.Helpers;
 using ModBot.Server.Middlewares;
+using ModBot.Server.Providers.Twitch;
+using ModBot.Server.Services.Bot;
 using Newtonsoft.Json;
 using RestSharp;
 
@@ -16,7 +20,14 @@ public class Startup
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddScoped<AppDbContext>();
-
+        services.AddSingleton<TokenStore>();
+        services.AddSingleton<TwitchBotAuth>();
+        
+        services.AddSingleton<IBotClientManager, BotClientManager>();
+        services.AddSingleton<IBotManager, BotManager>();
+        services.AddHostedService(sp => (BotManager)sp.GetRequiredService<IBotManager>());
+        services.AddHostedService<BotInitializationQueue>();
+            
         services.AddMemoryCache();
 
         services.AddControllers()
@@ -83,7 +94,6 @@ public class Startup
             })
             .AddTwitch(options =>
             {
-                Console.WriteLine("Twitch authentication configured");
                 options.ClientId = Globals.TwitchClientId;
                 options.ClientSecret = Globals.ClientSecret;
             });
@@ -109,6 +119,7 @@ public class Startup
                     .AllowAnyHeader();
             });
         });
+
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -130,7 +141,7 @@ public class Startup
 
         app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
 
-        // Add before app.Run()
         app.UseCors("VueAppPolicy");
+        
     }
 }

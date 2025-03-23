@@ -14,12 +14,21 @@ import Login from '@/views/Auth/Login.vue';
 import Unauthenticated from '@/views/Auth/Unauthenticated.vue';
 import { type InferRouteNames, type InferRoutePaths, routeNameToKey } from '@/types/router';
 import NotFound from '@/views/NotFound.vue';
+import { user } from '@/store/user.ts';
 
 const mainRoutes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    redirect: {
-      name: 'Unauthenticated'
+    redirect: () => {
+      if (!!localStorage.access_token) {
+        return {
+          name: 'Home'
+        };
+      } else {
+        return {
+          name: 'Login'
+        };
+      }
     }
   },
   {
@@ -33,9 +42,16 @@ const mainRoutes: Array<RouteRecordRaw> = [
     }
   },
   {
-    path: '/moderation/channels',
-    name: 'Channels',
-    component: () => import('@/views/Channels.vue'),
+    path: '/your-channel',
+    name: 'Your Channel',
+    redirect: () => {
+      return {
+        name: 'Channel',
+        params: {
+          channelLogin: user.value.username
+        }
+      };
+    },
     meta: {
       requiresAuth: true,
       group: 'main',
@@ -43,9 +59,19 @@ const mainRoutes: Array<RouteRecordRaw> = [
     }
   },
   {
-    path: '/moderation/channels/:channelLogin',
+    path: '/channels',
+    name: 'Channels',
+    component: () => import('@/views/Channel/Channels.vue'),
+    meta: {
+      requiresAuth: true,
+      group: 'main',
+      icon: UsersIcon
+    }
+  },
+  {
+    path: '/channels/:channelLogin',
     name: 'Channel',
-    component: () => import('@/views/Channel.vue'),
+    component: () => import('@/views/Channel/Channel.vue'),
     meta: {
       requiresAuth: true,
       icon: UsersIcon

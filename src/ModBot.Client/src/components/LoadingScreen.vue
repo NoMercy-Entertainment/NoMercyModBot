@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import AppLogoSquare from '@/components/icons/icons/AppLogoSquare.vue';
+import AppLogoSquare from '@/components/icons/AppLogoSquare.vue';
 import Backdrop from '@/components/Backdrop.vue';
 
 </script>

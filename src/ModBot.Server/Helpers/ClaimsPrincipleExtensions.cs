@@ -1,5 +1,6 @@
 using System.Security.Authentication;
 using System.Security.Claims;
+using ModBot.Database;
 using ModBot.Database.Models;
 using ModBot.Server.Config;
 
@@ -58,10 +59,12 @@ public static class ClaimsPrincipleExtensions
         string? userId = principal?
             .FindFirst(ClaimTypes.NameIdentifier)?
             .Value;
+        
+        using AppDbContext dbContext = new();
 
         return userId is null
             ? null
-            : Globals.DbContext.Users
+            : dbContext.Users
                 .FirstOrDefault(user => user.Id == userId);
     }
 }

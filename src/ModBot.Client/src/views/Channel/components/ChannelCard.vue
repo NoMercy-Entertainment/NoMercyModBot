@@ -2,6 +2,8 @@
 import { ClockIcon } from '@heroicons/vue/20/solid';
 
 import type { Channel } from '@/types/moderation.ts';
+import LiveIndicator from '@/views/Channel/components/LiveIndicator.vue';
+import ChannelImage from '@/views/Channel/components/ChannelImage.vue';
 
 defineProps({
   channel: {
@@ -44,20 +46,16 @@ const generateGradient = (color: string | null) => {
     <div class="absolute inset-0 opacity-30"
          :style="`background: ${generateGradient(channel.broadcaster.color)}`" />
     <div class="flex flex-1 flex-col p-7">
-      <div class="relative mx-auto">
-        <img class="min-w-36 size-36 shrink-0 rounded-full"
-             :style="`background-color: hsl(from ${channel.broadcaster.color} h calc(s / 1.5) calc(l / 1.8))`"
-             :src="channel.broadcaster.profile_image_url"
-             :alt="`${channel.broadcaster.display_name} profile image`" />
-        <div v-if="channel.is_live"
-             class="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-sm text-xs font-medium bg-red-600 text-white">
-          LIVE
-        </div>
-      </div>
-      <h3 class="mt-6 text-sm font-medium">
+      <ChannelImage :channel="channel" size="w-36 size-36" />
+      <h3 class="mt-6 text-base sm:text-lg font-medium"
+          :style="`text-shadow: 
+                     -1px -1px 2px hsl(from ${channel.broadcaster.color} h s calc(l * 0.5)), 1px -1px 2px hsl(from ${channel.broadcaster.color} h s calc(l * 0.5)), -1px 1px 2px hsl(from ${channel.broadcaster.color} h s calc(l * 0.5)), 1px 1px 2px hsl(from ${channel.broadcaster.color} h s calc(l * 0.5)),
+                     -2px -2px 15px hsl(from ${channel.broadcaster.color} h s calc(l * 0.5)), 2px -2px 15px hsl(from ${channel.broadcaster.color} h s calc(l * 0.5)), -2px 2px 15px hsl(from ${channel.broadcaster.color} h s calc(l * 0.5)), 2px 2px 15px hsl(from ${channel.broadcaster.color} h s calc(l * 0.5))
+                  `">
         {{ channel.broadcaster_name }}
       </h3>
     </div>
+
     <div>
       <div class="-mt-px flex divide-x divide-neutral-200 dark:divide-neutral-700">
         <div class="flex w-0 flex-1">

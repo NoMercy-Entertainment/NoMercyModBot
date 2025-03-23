@@ -20,22 +20,31 @@ public static class Globals
 
     public static string TwitchClientId { get; private set; }
     public static string ClientSecret { get; private set; }
+    
+    public static string? TwitchBotId { get; set; } = "104534444";
 
     public static readonly string[] Scopes =
     [
+        
+        "channel:read:subscriptions",
         "chat:edit",
         "chat:read",
         "moderation:read",
+        "moderator:manage:announcements",
         "moderator:manage:banned_users",
         "moderator:manage:blocked_terms",
         "moderator:manage:chat_messages",
         "moderator:manage:chat_settings",
+        "moderator:manage:shoutouts",
         "moderator:manage:warnings",
         "moderator:read:chat_messages",
         "moderator:read:chat_settings",
         "moderator:read:chatters",
+        "moderator:read:followers",
+        "moderator:read:shoutouts",
         "moderator:read:warnings",
         "user:read:moderated_channels",
+        "user:read:subscriptions",
         "user:write:chat"
     ];
 
@@ -56,7 +65,4 @@ public static class Globals
     public static string EventSubCallbackUri => "https://modbot.nomercy.tv/api/eventsub";
     public static string TwitchApiUrl => "https://api.twitch.tv/helix";
     public static string TwitchAuthUrl => "https://id.twitch.tv/oauth2";
-
-
-    public static readonly AppDbContext DbContext = new();
 }

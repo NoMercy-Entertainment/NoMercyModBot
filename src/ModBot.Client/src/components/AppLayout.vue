@@ -13,7 +13,7 @@ import {
 import { user, isInitialized } from '@/store/user';
 import routes from '@/router/routes';
 import LoadingScreen from '@/components/LoadingScreen.vue';
-import AppLogoSquare from '@/components/icons/icons/AppLogoSquare.vue';
+import AppLogoSquare from '@/components/icons/AppLogoSquare.vue';
 import Backdrop from '@/components/Backdrop.vue';
 import { ChevronDownIcon } from '@heroicons/vue/20/solid';
 
@@ -35,7 +35,8 @@ const userAvatar = computed(() => user.value?.profile_image_url || '');
 </script>
 
 <template>
-  <div class="absolute w-available h-available overflow-hidden isolate" aria-hidden="true">
+  <div class="absolute w-available h-available overflow-hidden isolate flex flex-col" aria-hidden="true">
+    <Backdrop class="opacity-40" />
     <LoadingScreen v-if="!isInitialized">
       <h2 class="text-3xl font-bold tracking-tight text-white">
         {{ $t('layout.welcomeBack', { name: userDisplayName }) }}
@@ -233,8 +234,7 @@ const userAvatar = computed(() => user.value?.profile_image_url || '');
         </Menu>
       </div>
 
-      <Backdrop class="opacity-40" />
-      <main class="lg:pl-72 h-available">
+      <main class="lg:pl-72 h-px flex-1 flex flex-col overflow-clip sm:overflow-auto">
         <div class="h-available flex flex-col overflow-auto">
           <RouterView />
         </div>
