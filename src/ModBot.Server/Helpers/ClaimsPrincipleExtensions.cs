@@ -2,7 +2,6 @@ using System.Security.Authentication;
 using System.Security.Claims;
 using ModBot.Database;
 using ModBot.Database.Models;
-using ModBot.Server.Config;
 
 namespace ModBot.Server.Helpers;
 

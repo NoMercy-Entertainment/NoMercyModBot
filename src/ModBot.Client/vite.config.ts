@@ -263,6 +263,8 @@ export default defineConfig({
           'https://pub-a68768bb5b1045f296df9ea56bd53a7f.r2.dev',
           'https://raw.githubusercontent.com',
           'https://usher.ttvnw.net',
+          'ws://localhost:5251',
+          'ws://192.168.2.201:5251',
         ],
         'frame-src': [
           'self',

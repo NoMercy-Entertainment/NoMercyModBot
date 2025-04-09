@@ -1,34 +1,35 @@
 <script setup lang="ts">
-import { computed, onMounted, type PropType, ref, watch } from 'vue';
+import { computed, onMounted, type PropType, ref } from 'vue';
 import type { BadgeSet, ChatEmoteSet, ChatMessage, EmoteSet } from '@/types/moderation.ts';
 
 const props = defineProps({
   message: {
     type: Object as () => ChatMessage,
-    required: true,
+    required: true
   },
   badges: {
-    type: Array as () => BadgeSet[],
+    type: Object as () => BadgeSet,
     required: false,
-    default: () => [],
+    default: () => []
   },
   emotes: {
     type: Array as () => EmoteSet[],
     required: false,
-    default: () => [],
+    default: () => []
   },
   scrollToBottom: {
     type: Function as PropType<(force?: boolean) => void>,
     required: false,
-    default: () => {},
-  },
+    default: () => {
+    }
+  }
 });
 
 const elementRef = ref();
 
 const formatTimestamp = computed(() => {
   try {
-    const date = new Date(Number(props.message.timestamp));
+    const date = new Date(Number(props.message.timestamp || props.message.tmiSentTs));
     if (isNaN(date.getTime())) {
       return '';
     }
@@ -52,34 +53,42 @@ const formatTimestamp = computed(() => {
   }
 });
 const badgeUrl = (badge: { key: string, value: string }) => {
-  const badgeSet = props.badges.find(b => b.set_id === badge.key);
-  const version = badgeSet?.versions?.find(v => v.id === badge.value);
+  const badgeSet = props.badges[badge.key];
+  let version = badgeSet[badge.value];
+  
   return version?.image_url_2x;
 };
-
 const messageParser = (message: string, emotes: ChatEmoteSet) => {
   if (!emotes) return message;
 
-  // Create array of tuples with position information
-  const replacements = emotes.Emotes.map((emote, index) => ({
-    start: emote.StartIndex,
-    end: emote.EndIndex,
-    placeholder: `__EMOTE_${index}__`,
-    html: `<img src="https://static-cdn.jtvnw.net/emoticons/v2/${emote.Id}/default/dark/1.0" class="h-fit" alt="${emote.Name}"/>`
-  })).sort((a, b) => b.start - a.start); // Sort in reverse to handle overlapping
+  // Create a StringInfo-like structure for handling UTF-16 characters
+  const text = Array.from(message);
+
+  // Sort emotes by start index in reverse order to handle overlapping
+  const replacements = emotes.Emotes.map((emote) => {
+    // Get the actual substring using array positions
+    const emoteName = text.slice(emote.StartIndex, emote.EndIndex + 1).join('');
+
+    return {
+      start: emote.StartIndex,
+      end: emote.EndIndex,
+      placeholder: `__EMOTE_${emote.Id}__`,
+      html: `<img src="https://static-cdn.jtvnw.net/emoticons/v2/${emote.Id}/default/dark/1.0" class="h-fit" alt="${emoteName}"/>`
+    };
+  }).sort((a, b) => b.start - a.start);
 
   // Replace text with placeholders
   let processedMessage = message;
-  replacements.forEach(({ start, end, placeholder }) => {
-    processedMessage = processedMessage.substring(0, start) +
-      placeholder +
-      processedMessage.substring(end + 1);
-  });
+  for (const { start, end, placeholder } of replacements) {
+    const before = Array.from(processedMessage).slice(0, start).join('');
+    const after = Array.from(processedMessage).slice(end + 1).join('');
+    processedMessage = before + placeholder + after;
+  }
 
-  // Replace placeholders with actual HTML
-  replacements.forEach(({ placeholder, html }) => {
+  // Replace placeholders with HTML
+  for (const { placeholder, html } of replacements) {
     processedMessage = processedMessage.replace(placeholder, html);
-  });
+  }
 
   return processedMessage;
 };
@@ -89,13 +98,13 @@ const parsedMessage = computed(() => {
 });
 
 onMounted(() => {
-    props.scrollToBottom();
+  props.scrollToBottom();
 });
 
 </script>
 
 <template>
-  <div ref="elementRef" class="w-available flex flex-col even:bg-neutral-800/50 odd:bg-neutral-700/50 first:mt-auto" >
+  <div ref="elementRef" class="w-available flex flex-col first:mt-auto even:bg-neutral-800/50 odd:bg-neutral-700/50">
     <div class="flex items-start space-x-2 p-2 rounded transition-colors">
       <div class="flex-1 flex flex-col">
         <div class="flex items-center gap-1">
@@ -107,7 +116,9 @@ onMounted(() => {
                  alt="chat badge">
           </div>
 
-          <span class="font-medium" :style="{ color: message.colorHex || '#9146FF' }">
+          <span class="font-medium" :style="{ 
+            color: message.colorHex || '#9146FF' 
+          }">
             {{ message.displayName }}
           </span>
           <span class="text-neutral-400">:</span>
@@ -117,7 +128,11 @@ onMounted(() => {
             </span>
         </div>
 
-        <div class="text-neutral-100 flex flex-wrap gap-0.5 items-center" v-html="parsedMessage"></div>
+        <div class="text-neutral-100 flex flex-wrap gap-0.5 items-center w-fit" v-html="parsedMessage"
+             :class="{ 
+                'bg-[var(--theme)] p-1 leading-none': message.isHighlighted, 
+                }"
+        ></div>
       </div>
     </div>
   </div>

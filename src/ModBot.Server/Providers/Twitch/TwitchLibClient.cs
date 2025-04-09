@@ -1,14 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using ModBot.Database;
 using ModBot.Database.Models;
+using ModBot.Server.Controllers;
 using ModBot.Server.Helpers;
 using TwitchLib.Client;
 using TwitchLib.Client.Enums;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
-using TwitchLib.Communication.Clients;
 using TwitchLib.Communication.Events;
-using TwitchLib.Communication.Models;
 using ChatMessage = ModBot.Database.Models.ChatMessage;
 
 namespace ModBot.Server.Providers.Twitch;
@@ -17,39 +16,43 @@ public class TwitchLibClient: IDisposable
 {
     private readonly TwitchClient _client;
     private readonly AppDbContext _dbContext;
-    private readonly ConnectionCredentials credentials;
-    internal User User { get; }
-    private User Broadcaster { get; }
+    private readonly ConnectionCredentials _credentials;
+    internal readonly User User;
+    private readonly User _broadcaster;
+    private readonly ILogger<TwitchLibClient> _logger;
 
     public TwitchLibClient(User user, User broadcaster)
     {
         User = user;
-        Broadcaster = broadcaster;
-        
-        _dbContext = new();
-        credentials = new(user.Username, user.AccessToken);
-        ClientOptions clientOptions = new();
+        _broadcaster = broadcaster;
+        _logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<TwitchLibClient>();
 
-        WebSocketClient customClient = new(clientOptions)
-        {
-            Options =
-            {
-                MessagesAllowedInPeriod = 750,
-                ThrottlingPeriod = TimeSpan.FromSeconds(30)
-            }
-        };
+        _dbContext = new();
+        _credentials = new(User.Username, User.AccessToken);
         
-        _client = new(customClient);
+        _client = new();
+
+        _client.OnLog += Client_OnLog;
+        _client.OnError += Client_OnError;
+        _client.OnJoinedChannel += Client_OnJoinedChannel;
+        _client.OnMessageReceived += Client_OnMessageReceived;
+        _client.OnWhisperReceived += Client_OnWhisperReceived;
+        _client.OnNewSubscriber += Client_OnNewSubscriber;
+        _client.OnConnected += Client_OnConnected;
+        _client.OnDisconnected += Client_OnDisconnected;
     }
     
-    public void UpdateToken(string newToken)
-    {
-        // Update the token in your chat client
-    }
-
     public void Dispose()
     {
-        // Cleanup resources
+        _client.OnLog -= Client_OnLog;
+        _client.OnError -= Client_OnError;
+        _client.OnJoinedChannel -= Client_OnJoinedChannel;
+        _client.OnMessageReceived -= Client_OnMessageReceived;
+        _client.OnWhisperReceived -= Client_OnWhisperReceived;
+        _client.OnNewSubscriber -= Client_OnNewSubscriber;
+        _client.OnConnected -= Client_OnConnected;
+        _client.OnDisconnected -= Client_OnDisconnected;
+        _client.Disconnect();
     }
 
     private void Client_OnError(object? sender, OnErrorEventArgs e)
@@ -64,65 +67,83 @@ public class TwitchLibClient: IDisposable
 
     private void Client_OnConnected(object? sender, OnConnectedArgs e)
     {
-        // Console.WriteLine($"{e.BotUsername} connected to {e.AutoJoinChannel}");
+        _logger.LogInformation("{user} joined channel {channel}", User.Username, _broadcaster.Username);
     }
-
+    
+    private void Client_OnDisconnected(object? sender, OnDisconnectedEventArgs e)
+    {
+        _logger.LogWarning("{user} disconnected from channel {channel}", User.Username, _broadcaster.Username);
+    }
+    
     private void Client_OnJoinedChannel(object? sender, OnJoinedChannelArgs e)
     {
-        Console.WriteLine($"{e.BotUsername} joined channel {e.Channel}");
         
-        // _client.SendMessage(e.Channel, "Hey guys! I am a bot connected via TwitchLib!");
     }
 
-    private void Client_OnMessageReceived(object? sender, OnMessageReceivedArgs e)
+    private async void Client_OnMessageReceived(object? sender, OnMessageReceivedArgs e)
     {
-        if (!_dbContext.Users.Any(u => u.Id == e.ChatMessage.UserId))
+        try
         {
-            TwitchApiClient.FetchUser(new()
+            if (!_dbContext.Users.Any(u => u.Id == e.ChatMessage.UserId))
             {
-                AccessToken = TwitchBotAuth.BotToken.AccessToken,
-            }, id: e.ChatMessage.UserId).Wait();
-        }
-        ChatMessage chatMessage = new(e.ChatMessage);
+                TokenResponse? botToken = await TwitchBotAuth.GetBotToken();
+                if (botToken?.AccessToken == null)
+                {
+                    _logger.LogError("Bot token not available for user lookup");
+                    return;
+                }
+
+                await TwitchApiClient.FetchUser(new()
+                {
+                    AccessToken = botToken.AccessToken
+                }, id: e.ChatMessage.UserId);
+            }
         
-        _dbContext.ChatMessages.Upsert(chatMessage)
-            .On(u => new { u.Id })
-            .WhenMatched((old, incoming) => new()
-            {
-                BadgeInfo = incoming.BadgeInfo,
-                Badges = incoming.Badges,
-                ChannelId = incoming.ChannelId,
-                Bits = incoming.Bits,
-                BitsInDollars = incoming.BitsInDollars,
-                BotUsername = incoming.BotUsername,
-                CheerBadge = incoming.CheerBadge,
-                Color = incoming.Color,
-                ColorHex = incoming.ColorHex,
-                CustomRewardId = incoming.CustomRewardId,
-                DisplayName = incoming.DisplayName,
-                EmoteSet = incoming.EmoteSet,
-                Id = incoming.Id,
-                IsBroadcaster = incoming.IsBroadcaster,
-                IsFirstMessage = incoming.IsFirstMessage,
-                IsHighlighted = incoming.IsHighlighted,
-                IsMe = incoming.IsMe,
-                IsModerator = incoming.IsModerator,
-                IsPartner = incoming.IsPartner,
-                IsSkippingSubMode = incoming.IsSkippingSubMode,
-                IsStaff = incoming.IsStaff,
-                IsSubscriber = incoming.IsSubscriber,
-                IsTurbo = incoming.IsTurbo,
-                IsVip = incoming.IsVip,
-                Message = incoming.Message,
-                Noisy = incoming.Noisy,
-                ReplyToMessageId = incoming.ReplyToMessageId,
-                SubscribedMonthCount = incoming.SubscribedMonthCount,
-                TmiSentTs = incoming.TmiSentTs,
-                UserId = incoming.UserId,
-                UserType = incoming.UserType,
-                Username = incoming.Username,
-            })
-            .Run();
+            ChatMessage chatMessage = new(e.ChatMessage);
+        
+            await _dbContext.ChatMessages.Upsert(chatMessage)
+                .On(u => new { u.Id })
+                .WhenMatched((old, incoming) => new()
+                {
+                    BadgeInfo = incoming.BadgeInfo,
+                    Badges = incoming.Badges,
+                    ChannelId = incoming.ChannelId,
+                    Bits = incoming.Bits,
+                    BitsInDollars = incoming.BitsInDollars,
+                    BotUsername = incoming.BotUsername,
+                    CheerBadge = incoming.CheerBadge,
+                    Color = incoming.Color,
+                    ColorHex = incoming.ColorHex,
+                    CustomRewardId = incoming.CustomRewardId,
+                    DisplayName = incoming.DisplayName,
+                    EmoteSet = incoming.EmoteSet,
+                    Id = incoming.Id,
+                    IsBroadcaster = incoming.IsBroadcaster,
+                    IsFirstMessage = incoming.IsFirstMessage,
+                    IsHighlighted = incoming.IsHighlighted,
+                    IsMe = incoming.IsMe,
+                    IsModerator = incoming.IsModerator,
+                    IsPartner = incoming.IsPartner,
+                    IsSkippingSubMode = incoming.IsSkippingSubMode,
+                    IsStaff = incoming.IsStaff,
+                    IsSubscriber = incoming.IsSubscriber,
+                    IsTurbo = incoming.IsTurbo,
+                    IsVip = incoming.IsVip,
+                    Message = incoming.Message,
+                    Noisy = incoming.Noisy,
+                    ReplyToMessageId = incoming.ReplyToMessageId,
+                    SubscribedMonthCount = incoming.SubscribedMonthCount,
+                    TmiSentTs = incoming.TmiSentTs,
+                    UserId = incoming.UserId,
+                    UserType = incoming.UserType,
+                    Username = incoming.Username,
+                })
+                .RunAsync();
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Error processing message");
+        }
     }
     
     private void Client_OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
@@ -144,16 +165,6 @@ public class TwitchLibClient: IDisposable
     {
         try
         {
-            _client.Initialize(credentials, Broadcaster.Username);
-
-            _client.OnLog += Client_OnLog;
-            _client.OnError += Client_OnError;
-            _client.OnJoinedChannel += Client_OnJoinedChannel;
-            _client.OnMessageReceived += Client_OnMessageReceived;
-            _client.OnWhisperReceived += Client_OnWhisperReceived;
-            _client.OnNewSubscriber += Client_OnNewSubscriber;
-            _client.OnConnected += Client_OnConnected;
-
             _client.Connect();
         }
         catch (Exception e)

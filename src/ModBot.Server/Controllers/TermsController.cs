@@ -43,7 +43,6 @@ public class TermsController(AppDbContext dbContext) : BaseController
         User? currentUser = User.User();
         if (currentUser == null) return Unauthorized();
 
-        TwitchApiClient twitchApi = new(currentUser);
         Helix client = TwitchApiClient.GetHelixClient(currentUser);
 
         AddBlockedTermResponse terms = await client.Moderation
@@ -62,7 +61,6 @@ public class TermsController(AppDbContext dbContext) : BaseController
         User? currentUser = User.User();
         if (currentUser == null) return Unauthorized();
 
-        TwitchApiClient twitchApi = new(currentUser);
         Helix client = TwitchApiClient.GetHelixClient(currentUser);
 
         await client.Moderation.DeleteBlockedTermAsync(

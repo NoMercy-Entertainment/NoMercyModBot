@@ -34,10 +34,6 @@ public class ChannelController(AppDbContext dbContext) : BaseController
             .ThenInclude(user => user.BroadcasterChatMessages)
             .ThenInclude(chatMessage => chatMessage.ReplyToMessage) 
             .ThenInclude(m => m.ReplyToMessage)
-            .Include(channel => channel.Moderator)
-            .ThenInclude(user => user.ModeratorChatMessages)
-            .ThenInclude(chatMessage => chatMessage.ReplyToMessage) 
-            .ThenInclude(m => m.ReplyToMessage)
             .OrderBy(channel => channel.Broadcaster.Username)
             .Select(channel => new ChannelDto(channel))
             .ToListAsync();
@@ -62,10 +58,6 @@ public class ChannelController(AppDbContext dbContext) : BaseController
                 .ThenInclude(user => user.BroadcasterChatMessages)
                 .ThenInclude(chatMessage => chatMessage.ReplyToMessage) 
                 .ThenInclude(m => m.ReplyToMessage)
-                .Include(channel => channel.Moderator)
-                .ThenInclude(user => user.ModeratorChatMessages)
-                .ThenInclude(chatMessage => chatMessage.ReplyToMessage) 
-                .ThenInclude(m => m.ReplyToMessage)
                 .OrderBy(channel => channel.Broadcaster.Username)
                 .Select(channel => new ChannelDto(channel))
                 .FirstOrDefaultAsync();
@@ -86,84 +78,129 @@ public class ChannelController(AppDbContext dbContext) : BaseController
     {
         User? currentUser = User.User();
         if (currentUser == null) return UnauthorizedResponse("Unauthorized");
-        
-        Helix client = TwitchApiClient.GetHelixClient(currentUser);
-        // Helix client = TwitchApiClient.GetHelixClient(TwitchBotAuth.BotUser);
 
-        GetGlobalChatBadgesResponse globalBadges = await client.Chat.GetGlobalChatBadgesAsync();
-        GetChannelChatBadgesResponse channelBadges = await client.Chat.GetChannelChatBadgesAsync(broadcasterId);
-
-        Dictionary<string, BadgeEmoteSet> mergedBadges = globalBadges.EmoteSet
-            .GroupBy(g => g.SetId)
-            .ToDictionary(g => g.Key, g => g.First())
-            .Concat(
-                channelBadges.EmoteSet
-                    .GroupBy(c => c.SetId)
-                    .ToDictionary(g => g.Key, g => g.First())
-            )
-            .GroupBy(x => x.Key)
-            .ToDictionary(g => g.Key, g => g.Last().Value);
-        
-        return Ok(new
+        try
         {
-            Message = "success",
-            Data = mergedBadges.Values
-        });
+            Helix client = TwitchApiClient.GetHelixClient(currentUser);
+
+            GetGlobalChatBadgesResponse globalBadges = await client.Chat.GetGlobalChatBadgesAsync();
+            GetChannelChatBadgesResponse channelBadges = await client.Chat.GetChannelChatBadgesAsync(broadcasterId);
+
+            Dictionary<string, Dictionary<string, BadgeVersion>> mergedBadges = new();
+
+            if (globalBadges is not null)
+            {
+                foreach (BadgeEmoteSet? badge in globalBadges.EmoteSet)
+                {
+                    IOrderedEnumerable<BadgeVersion> version = badge.Versions.OrderByDescending(v => int.TryParse(v.Id, out int id) ? id : 0);
+                    foreach (BadgeVersion v in version)
+                    {
+                        if (!mergedBadges.ContainsKey(badge.SetId))
+                        {
+                            mergedBadges.Add(badge.SetId,[]);
+                        }
+                        
+                        if (!mergedBadges[badge.SetId].ContainsKey(v.Id))
+                        {
+                            mergedBadges[badge.SetId].Add(v.Id, v);
+                        }
+                    }
+                }
+            }
+
+            if (channelBadges is not null)
+            {
+                foreach (BadgeEmoteSet? badge in channelBadges.EmoteSet)
+                {
+                    IOrderedEnumerable<BadgeVersion> version = badge.Versions.OrderByDescending(v => int.TryParse(v.Id, out int id) ? id : 0);
+                    foreach (BadgeVersion v in version)
+                    {
+                        if (!mergedBadges.ContainsKey(badge.SetId))
+                        {
+                            mergedBadges.Add(badge.SetId,[]);
+                        }
+                        
+                        if (!mergedBadges[badge.SetId].ContainsKey(v.Id))
+                        {
+                            mergedBadges[badge.SetId].Add(v.Id, v);
+                        }
+                        else
+                        {
+                            mergedBadges[badge.SetId][v.Id] = v;
+                        }
+                    }
+                }
+            }
+            
+            return Ok(new
+            {
+                Message = "success",
+                Data = mergedBadges
+            });
+        }
+        catch (Exception ex)
+        {
+            return InternalServerErrorResponse(ex.Message);
+        }
     }
     
     [HttpGet]
     [Route("{broadcasterId}/emotes")]
     public async Task<IActionResult> GetChannelEmotes(string broadcasterId)
     {
-        User? currentUser = User.User();
-        if (currentUser == null) return UnauthorizedResponse("Unauthorized");
-        
-        Helix client = TwitchApiClient.GetHelixClient(currentUser);
-        // Helix client = TwitchApiClient.GetHelixClient(TwitchBotAuth.BotUser);
-
-        GetGlobalEmotesResponse globalEmotes = await client.Chat.GetGlobalEmotesAsync();
-        GetChannelEmotesResponse channelEmotes = await client.Chat.GetChannelEmotesAsync(broadcasterId);
-        
-        // Convert global emotes to dictionary
-        var globalEmoteDict = globalEmotes.GlobalEmotes
-            .ToDictionary(
-                e => e.Id,
-                e => new
-                {
-                    e.Id,
-                    e.Name,
-                    e.Images,
-                    e.Format,
-                    e.Scale,
-                    e.ThemeMode,
-                    IsGlobal = true
-                }
-            );
-
-        // Convert channel emotes and merge with global emotes
-        var mergedEmotes = channelEmotes.ChannelEmotes
-            .ToDictionary(
-                e => e.Id,
-                e => new
-                {
-                    e.Id,
-                    e.Name,
-                    e.Images,
-                    e.Format,
-                    e.Scale,
-                    e.ThemeMode,
-                    IsGlobal = false
-                }
-            )
-            .Concat(globalEmoteDict)
-            .GroupBy(x => x.Key)
-            .ToDictionary(g => g.Key, g => g.Last().Value);
-        
-        return Ok(new
+        try
         {
-            Message = "success",
-            Data = mergedEmotes.Values
-        });
+            User? currentUser = User.User();
+            if (currentUser == null) return UnauthorizedResponse("Unauthorized");
+
+            Helix client = TwitchApiClient.GetHelixClient(currentUser);
+            
+            GetGlobalEmotesResponse globalEmotes = await client.Chat.GetGlobalEmotesAsync();
+            GetChannelEmotesResponse channelEmotes = await client.Chat.GetChannelEmotesAsync(broadcasterId);
+
+            Dictionary<string, object> allEmotes = new();
+
+            // Add global emotes
+            foreach (GlobalEmote? emote in globalEmotes.GlobalEmotes)
+            {
+                allEmotes[emote.Id] = new
+                {
+                    emote.Id,
+                    emote.Name,
+                    emote.Images,
+                    emote.Format,
+                    emote.Scale,
+                    emote.ThemeMode,
+                    IsGlobal = true
+                };
+            }
+
+            // Add or update channel emotes
+            foreach (ChannelEmote? emote in channelEmotes.ChannelEmotes)
+            {
+                allEmotes[emote.Id] = new
+                {
+                    emote.Id,
+                    emote.Name,
+                    emote.Images,
+                    emote.Format,
+                    emote.Scale,
+                    emote.ThemeMode,
+                    IsGlobal = false
+                };
+            }
+
+            return Ok(new
+            {
+                Message = "success",
+                Data = allEmotes.Values
+            });
+        }
+        catch (Exception ex)
+        {
+            // _logger.LogError(ex, "Error fetching emotes for channel {BroadcasterId}", broadcasterId);
+            return InternalServerErrorResponse("Failed to fetch emotes");
+        }
     }
 }
 
@@ -177,4 +214,11 @@ public class ChannelData
     [JsonProperty("broadcaster_id")] public string Id { get; set; } = string.Empty;
     [JsonProperty("broadcaster_login")] public string BroadCasterLogin { get; set; } = string.Empty;
     [JsonProperty("broadcaster_name")] public string BroadcasterName { get; set; } = string.Empty;
+}
+
+public class BadgeEmoteSetDto
+{
+    public string SetId { get; set; } = string.Empty;
+    public BadgeVersion[] Versions { get; set; } = [];
+    public bool IsGlobalBadge { get; set; }
 }

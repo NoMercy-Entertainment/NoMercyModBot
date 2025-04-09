@@ -8,7 +8,7 @@ import {
 
 import type { ChannelEmbedConfig } from '@/types/chat.ts';
 
-import ChatPopup from '@/views/Channel/components/ChatPopup.vue';
+import ChatPopup from '@/views/Channel/components/ChannelChatPopup.vue';
 
 defineProps({
   config: {

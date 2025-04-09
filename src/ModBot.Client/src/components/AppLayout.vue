@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
 import {
   Menu, MenuButton, MenuItem,
@@ -55,7 +55,7 @@ const userAvatar = computed(() => user.value?.profile_image_url || '');
     </LoadingScreen>
 
     <template v-else-if="!user?.access_token">
-      <RouterView />
+      <RouterView :key="route.path" />
     </template>
 
     <!-- Show dashboard layout when authenticated -->
@@ -236,7 +236,7 @@ const userAvatar = computed(() => user.value?.profile_image_url || '');
 
       <main class="lg:pl-72 h-px flex-1 flex flex-col overflow-clip sm:overflow-auto">
         <div class="h-available flex flex-col overflow-auto">
-          <RouterView />
+          <RouterView :key="route.path" />
         </div>
       </main>
     </template>

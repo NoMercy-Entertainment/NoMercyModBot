@@ -1,7 +1,8 @@
 using System.Threading.Channels;
 using ModBot.Server.Providers.Twitch;
-using ModBot.Server.Services.Bot;
 using ModBot.Server.Services.Bot.Model;
+
+namespace ModBot.Server.Services.Bot;
 
 public class BotInitializationQueue : BackgroundService
 {
@@ -67,7 +68,7 @@ public class BotInitializationQueue : BackgroundService
             await selfBot.Initialize();
 
             IEnumerable<Task> channelTasks = job.User.ModeratorChannels
-                .Where(channel => channel.Broadcaster?.Id != job.User.Id)
+                // .Where(channel => channel.Broadcaster?.Id != job.User.Id)
                 .Select(async channel =>
                 {
                     try

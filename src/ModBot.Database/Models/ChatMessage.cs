@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Drawing;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using TwitchLib.Client.Enums;
@@ -31,12 +32,12 @@ public class ChatMessage: Timestamps
         get => ReplaceEmotesWithImageTags();
         set => _emoteReplacedMessage = value;
     }
-
+    
     private string ReplaceEmotesWithImageTags()
     {
         if (string.IsNullOrEmpty(Message) || EmoteSet?.Emotes == null || !EmoteSet.Emotes.Any())
             return Message;
-
+    
         var stringReplacements = EmoteSet.Emotes
             .Select(emote =>
             {
@@ -46,18 +47,18 @@ public class ChatMessage: Timestamps
                                      $"style=\"width:30px;height:30px;transform:translateY(25%);\" " +
                                      $"alt=\"{stringToReplace}\" " +
                                      $"title=\"{stringToReplace}\">";
-
+    
                 return new { stringToReplace, replacement };
             })
             .ToList();
-
+    
         // Use the same reduction pattern as in TypeScript
         string result = stringReplacements.Aggregate(
             Message,
             (current, replacement) => 
                 current.Replace(replacement.stringToReplace, replacement.replacement)
         );
-
+    
         return result;
     }
     
@@ -125,8 +126,10 @@ public class ChatMessage: Timestamps
         CustomRewardId = chatMessage.CustomRewardId;
         DisplayName = chatMessage.DisplayName;
         EmoteReplacedMessage = chatMessage.EmoteReplacedMessage;
+        
+        Message = chatMessage.Message;
         EmoteSet = chatMessage.EmoteSet.Emotes.Count > 0
-            ? MyEmoteSet.FromTwitchEmoteSet(chatMessage.EmoteSet)
+            ? MyEmoteSet.FromTwitchEmoteSet(chatMessage.EmoteSet, chatMessage.Message)
             : null;
         Id = chatMessage.Id;
         IsBroadcaster = chatMessage.IsBroadcaster;
@@ -154,7 +157,7 @@ public class ChatMessage: Timestamps
 public class MyEmoteSet : EmoteSet
 {
     [JsonProperty("Emotes")]
-    public List<Emote> Emotes { get; set; } = new();
+    public List<Emote> Emotes { get; set; } = [];
 
     [JsonProperty("RawEmoteSetString")]
     public string RawEmoteSetString { get; set; } = string.Empty;
@@ -174,17 +177,40 @@ public class MyEmoteSet : EmoteSet
     public MyEmoteSet() : base("", "") { }
 
     // Add conversion from TwitchLib EmoteSet
-    public static MyEmoteSet? FromTwitchEmoteSet(EmoteSet emoteSet)
+    public static MyEmoteSet FromTwitchEmoteSet(EmoteSet emoteSet, string message)
     {
-        List<Emote> myEmotes = emoteSet.Emotes.Select(e => new Emote(
-            e.Id,
-            e.Name,
-            e.StartIndex,
-            e.EndIndex,
-            $"https://static-cdn.jtvnw.net/emoticons/v1/{e.Id}/1.0"
-        )).ToList();
-
-        return new(myEmotes, emoteSet.RawEmoteSetString);
+        StringInfo stringInfo = new(message);
+        List<Emote> newEmotes = [];
+        
+        IOrderedEnumerable<TwitchLib.Client.Models.Emote> emotes = emoteSet.Emotes.OrderBy(x => x.StartIndex);
+        
+        foreach (TwitchLib.Client.Models.Emote? emote in emotes)
+        {
+            try
+            {
+                // Calculate actual string positions based on UTF-16 code units
+                int startPos = stringInfo.SubstringByTextElements(0, emote.StartIndex).Length;
+                int endPos = stringInfo.SubstringByTextElements(0, emote.EndIndex).Length + 1;
+            
+                // Extract the emote name using the UTF-16 positions
+                string name = message[startPos..endPos];           
+                
+                newEmotes.Add(new()
+                {
+                    Id = emote.Id,
+                    Name = name,
+                    StartIndex = emote.StartIndex,
+                    EndIndex = emote.EndIndex,
+                    ImageUrl = $"https://static-cdn.jtvnw.net/emoticons/v2/{emote.Id}/default/dark/2.0"
+                });
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+        }
+        
+        return new(newEmotes, emoteSet.RawEmoteSetString);
     }
 }
 

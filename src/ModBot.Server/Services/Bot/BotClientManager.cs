@@ -30,11 +30,6 @@ public class BotClientManager : IBotClientManager
         {
             apiClient.UpdateToken(user.AccessToken!);
         }
-
-        foreach (TwitchLibClient botClient in GetBotClientsForUser(user.Id))
-        {
-            botClient.UpdateToken(user.AccessToken!);
-        }
     }
 
     public void Cleanup()

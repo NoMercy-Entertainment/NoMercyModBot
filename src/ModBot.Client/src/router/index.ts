@@ -7,7 +7,7 @@ const router = createRouter({
   routes: routes
 });
 
-router.beforeEach((to: RouteLocationNormalized) => {
+router.beforeEach((to: RouteLocationNormalized, from: RouteLocationNormalized) => {
   // Redirect to home if trying to access login while authenticated
   if (to.name === 'Login' && user.value.access_token) {
     return { name: 'home' };
@@ -16,6 +16,10 @@ router.beforeEach((to: RouteLocationNormalized) => {
   // Add authentication check for protected routes if needed
   if (to.meta.requiresAuth && !user.value.access_token) {
     return { name: 'Login' };
+  }
+  
+  if (to.name === from.name && to.params.channelName !== from.params.channelName) {
+    return { ...to, replace: true };
   }
 });
 

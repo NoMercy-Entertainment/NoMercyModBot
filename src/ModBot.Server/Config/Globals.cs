@@ -1,4 +1,3 @@
-using ModBot.Database;
 using TwitchLib.Api.Core.Enums;
 
 namespace ModBot.Server.Config;

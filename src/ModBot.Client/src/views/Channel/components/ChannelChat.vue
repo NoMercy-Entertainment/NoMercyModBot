@@ -5,11 +5,10 @@ import type { ChatEmbed } from '@/types/chat.ts';
 import type { BadgeSet, EmoteSet } from '@/types/moderation.ts';
 
 import useServerClient from '@/lib/clients/useServerClient.ts';
-import { hasChatEmbed } from '@/store/chat.ts';
 import { hasPlayerEmbed } from '@/store/player.ts';
 
-import ChatMessage from '@/views/Channel/components/ChatMessage.vue';
-import ChatInput from '@/views/Channel/components/ChatInput.vue';
+import ChatMessage from '@/views/Channel/components/ChannelChatMessage.vue';
+import ChatInput from '@/views/Channel/components/ChannelChatInput.vue';
 
 const props = defineProps({
   chatEmbed: {
@@ -17,6 +16,8 @@ const props = defineProps({
     required: true
   }
 });
+
+console.log(props.chatEmbed);
 
 const { data: badges } = useServerClient<BadgeSet[]>({
   enabled: !!props.chatEmbed.config.channelId,
@@ -32,6 +33,7 @@ const elementRef = ref<HTMLElement>();
 const messagesRef = ref<HTMLElement>();
 const isAtBottom = ref(true);
 const scrollBlocked = ref(false);
+
 const scrollToBottom = (force?: boolean) => {
   if (!messagesRef.value) return;
   

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using ModBot.Database;
 using ModBot.Database.Models;
@@ -14,7 +15,7 @@ namespace ModBot.Server.Providers.Twitch;
 
 public class TwitchApiClient
 {
-    private static readonly Dictionary<string, TwitchAPI> Clients = [];
+    private static readonly ConcurrentDictionary<string, TwitchAPI> Clients = [];
 
     public TwitchApiClient(User user)
     {
@@ -37,7 +38,7 @@ public class TwitchApiClient
         
         Console.WriteLine($"Initializing Twitch API client for {user.Username}");
 
-        Clients.Add(user.Id, client);
+        Clients.TryAdd(user.Id, client);
     }
 
     public static Helix GetHelixClient(User user)
@@ -51,7 +52,7 @@ public class TwitchApiClient
 
     public void RemoveClient(User user)
     {
-        Clients.Remove(user.Id);
+        Clients.TryRemove(user.Id, out _);
     }
 
     public void UpdateClient(User user)

@@ -17,7 +17,7 @@ public record UserDto
     [JsonProperty("is_live")] public bool IsLive { get; set; }
     
     [JsonProperty("broadcaster_chat_messages")] public IEnumerable<MessageDto> BroadcasterChatMessages { get; set; } = [];
-    [JsonProperty("moderator_chat_messages")] public IEnumerable<MessageDto> ModeratorChatMessages { get; set; } = [];
+    // [JsonProperty("moderator_chat_messages")] public IEnumerable<MessageDto> ModeratorChatMessages { get; set; } = [];
     
     public UserDto(User user)
     {
@@ -33,8 +33,12 @@ public record UserDto
         Enabled = user.Enabled;
         IsLive = user.IsLive;
         
-        BroadcasterChatMessages = user.BroadcasterChatMessages.Select(message => new MessageDto(message));
-        ModeratorChatMessages = user.ModeratorChatMessages.Select(message => new MessageDto(message));
+        BroadcasterChatMessages = user.BroadcasterChatMessages
+            .OrderByDescending(m => m.CreatedAt)
+            .Take(100)
+            .OrderBy(m => m.CreatedAt)
+            .Select(message => new MessageDto(message));
+        // ModeratorChatMessages = user.ModeratorChatMessages.Select(message => new MessageDto(message));
     }
 }
 

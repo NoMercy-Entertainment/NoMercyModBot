@@ -1,67 +1,56 @@
-using System.Collections.ObjectModel;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ModBot.Database;
 using ModBot.Database.Models;
-using ModBot.Server.Config;
 using ModBot.Server.Controllers.Dto;
 using ModBot.Server.Helpers;
 using ModBot.Server.Middlewares;
 using ModBot.Server.Providers.Twitch;
-using RestSharp;
+using ModBot.Server.Services.Twitch;
 using Newtonsoft.Json;
-using NodaTime.TimeZones;
-using TwitchLib.Api.Helix;
 using TwitchLib.Api.Helix.Models.Chat.GetUserChatColor;
 
 namespace ModBot.Server.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthenticationController(AppDbContext dbContext) : BaseController
+public class AuthenticationController(AppDbContext dbContext, TwitchAuthService twitchAuthService, TwitchApiService twitchApiService) : BaseController
 {
+    // twitch sends the user back to this endpoint with a code
     [HttpGet("callback")]
     public async Task<IActionResult> Callback([FromQuery] string code, [FromQuery] string? error)
     {
         if (!string.IsNullOrEmpty(error)) return BadRequestResponse(error);
 
-        RestClient restClient = new($"{Globals.TwitchAuthUrl}/token");
-        RestRequest request = new("", Method.Post);
-        request.AddParameter("client_id", Globals.TwitchClientId);
-        request.AddParameter("client_secret", Globals.ClientSecret);
-        request.AddParameter("code", code);
-        request.AddParameter("scope", string.Join(' ', Globals.Scopes));
-        request.AddParameter("grant_type", "authorization_code");
-        request.AddParameter("redirect_uri", Globals.RedirectUri);
-
-        RestResponse response = await restClient.ExecuteAsync(request);
-        if (!response.IsSuccessful)
-            return BadRequestResponse(response.Content ?? "Failed to fetch token from Twitch.");
-        if (response.Content is null) return BadRequestResponse("Invalid response from Twitch.");
-
-        TokenResponse? tokenResponse = response.Content.FromJson<TokenResponse>();
-        if (tokenResponse is null) return BadRequestResponse(response.Content);
-        
-        string countryCode = HttpContext.Request.Headers["CF-IPCountry"].ToString();
-        
-        User user = await TwitchApiClient.FetchUser(tokenResponse, countryCode);
-
         try
         {
-            AfterLogin afterLogin = new();
-            await afterLogin.Invoke(user);
+            TokenResponse tokenResponse = await twitchAuthService.Callback(code);
+            
+            string countryCode = Request.Headers["CF-IPCountry"].ToString();
+            
+            User user = await twitchApiService.FetchUser(tokenResponse, countryCode);
+
+            try
+            {
+                AfterLogin afterLogin = new();
+                await afterLogin.Invoke(user);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                return BadRequestResponse(e.Message);
+            }
+
+            return Ok(new
+            {
+                Message = "Moderator logged in successfully",
+                User = new UserWithTokenDto(user, tokenResponse),
+            });
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
-            return BadRequestResponse(e.Message);
+            return UnauthorizedResponse(e.Message);
         }
-
-        return Ok(new
-        {
-            Message = "Moderator logged in successfully",
-            User = new UserWithTokenDto(user, tokenResponse),
-        });
     }
 
     [HttpGet("validate")]
@@ -70,21 +59,9 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
         User? currentUser = User.User();
         if (currentUser is null) return UnauthenticatedResponse("User not logged in.");
         
-        string authorizationHeader = Request.Headers["Authorization"].First() ?? throw new InvalidOperationException();
-        string accessToken = authorizationHeader["Bearer ".Length..];
-
         try
         {
-            RestClient client = new(Globals.TwitchAuthUrl);
-            RestRequest request = new("validate");
-            request.AddHeader("Authorization", $"Bearer {accessToken}");
-
-            RestResponse response = await client.ExecuteAsync(request);
-            if (!response.IsSuccessful) return BadRequestResponse(response.Content);
-            if (response.Content is null) return BadRequestResponse("Invalid response from Twitch.");
-            
-            TokenResponse? tokenResponse = response.Content.FromJson<TokenResponse>();
-            if (tokenResponse is null) return BadRequestResponse("Failed to get a new token");
+            await twitchAuthService.ValidateToken(Request);
             
             return Ok(new
             {
@@ -92,9 +69,9 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
                 User = new UserWithTokenDto(currentUser),
             });
         }
-        catch
+        catch (Exception e)
         {
-            return UnauthorizedResponse("Failed to validate session.");
+            return UnauthorizedResponse(e.Message);
         }
     }
 
@@ -104,12 +81,9 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
         User? currentUser = User.User();
         if (currentUser is null) return UnauthenticatedResponse("User not logged in.");
         
-        currentUser.RefreshToken = data.RefreshToken;
-
         try
         {
-            TokenResponse? tokenResponse = await TwitchApiClient.RefreshToken(currentUser);
-            if (tokenResponse is null) return UnauthorizedResponse("Failed to refresh token.");
+            TokenResponse tokenResponse = await twitchAuthService.RefreshToken(data.RefreshToken);
             
             User user = await dbContext.Users
                 .FirstAsync(u => u.Id == currentUser.Id);
@@ -124,9 +98,9 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
                 User = new UserWithTokenDto(user, tokenResponse),
             });
         }
-        catch
+        catch (Exception e)
         {
-            return Unauthorized();
+            return UnauthorizedResponse(e.Message);
         }
     }
 
@@ -138,13 +112,7 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
 
         try
         {
-            // Revoke Twitch token
-            RestClient client = new($"{Globals.TwitchAuthUrl}/revoke");
-            RestRequest request = new("", Method.Post);
-            request.AddParameter("client_id", Globals.TwitchClientId);
-            request.AddParameter("token", currentUser.AccessToken);
-
-            await client.ExecuteAsync(request);
+            await twitchAuthService.RevokeToken(currentUser.AccessToken!);
 
             User user = await dbContext.Users
                 .Include(x => x.BroadcasterChannels)
@@ -179,112 +147,104 @@ public class AuthenticationController(AppDbContext dbContext) : BaseController
         }
     }
 
-    // Device grant
+    // get a redirect url for the user to login directly to twitch
     [HttpGet("login")]
     public IActionResult Login()
     {
-        string authorizationUrl = $"{Globals.TwitchAuthUrl}/authorize?response_type=code" +
-                                  $"&client_id={Globals.TwitchClientId}" +
-                                  $"&redirect_uri={Uri.EscapeDataString(Globals.RedirectUri)}" +
-                                  $"&scope={Uri.EscapeDataString(string.Join(' ', Globals.Scopes))}";
+        try
+        {
+            string authorizationUrl = twitchAuthService.GetRedirectUrl();
 
-        return Redirect(authorizationUrl);
+            return Redirect(authorizationUrl);
+        } 
+        catch (Exception e)
+        {
+            return BadRequestResponse(e.Message);
+        }
     }
 
     [HttpGet("authorize")]
     public async Task<IActionResult> Authorize()
     {
-        RestClient client = new(Globals.TwitchAuthUrl);
-        RestRequest request = new("device", Method.Post);
-        request.AddParameter("client_id", Globals.TwitchClientId);
-        request.AddParameter("scopes", string.Join(' ', Globals.Scopes));
-
-        RestResponse response = await client.ExecuteAsync(request);
-        if (!response.IsSuccessful)
-            return BadRequestResponse(response.Content ?? "Failed to fetch device code from Twitch.");
-        if (response.Content is null) return BadRequestResponse("Invalid response from Twitch.");
-
-        DeviceCodeResponse? deviceCodeResponse = response.Content.FromJson<DeviceCodeResponse>();
-        if (deviceCodeResponse is null) return BadRequestResponse(response.Content);
-
-        return Ok(new
+        try
         {
-            Message = "Please log in with Twitch",
-            VerificationUrl = deviceCodeResponse.VerificationUri,
-            deviceCodeResponse.DeviceCode
-        });
+            DeviceCodeResponse deviceCodeResponse = await twitchAuthService.Authorize();
+
+            return Ok(new
+            {
+                Message = "Please log in with Twitch",
+                VerificationUrl = deviceCodeResponse.VerificationUri,
+                deviceCodeResponse.DeviceCode
+            });
+        }
+        catch (Exception e)
+        {
+            return BadRequestResponse(e.Message);
+        }
     }
 
     [HttpPost("poll")]
     public async Task<IActionResult> PollForToken([FromBody] DeviceCodeRequest data)
     {
-        // Poll for the token and save user details in the database
-        RestClient restClient = new($"{Globals.TwitchAuthUrl}/token");
-        RestRequest request = new("", Method.Post);
-        request.AddParameter("client_id", Globals.TwitchClientId);
-        request.AddParameter("client_secret", Globals.ClientSecret);
-        request.AddParameter("grant_type", "urn:ietf:params:oauth:grant-type:device_code");
-        request.AddParameter("device_code", data.DeviceCode);
-        request.AddParameter("scopes", string.Join(' ', Globals.Scopes));
-
-        RestResponse response = await restClient.ExecuteAsync(request);
-        if (!response.IsSuccessful) return BadRequestResponse(response.Content ?? "Failed to fetch token from Twitch.");
-        if (response.Content is null) return BadRequestResponse("Invalid response from Twitch.");
-
-        TokenResponse? tokenResponse = response.Content.FromJson<TokenResponse>();
-        if (tokenResponse is null) return BadRequestResponse(response.Content);
-
-        // Fetch user info from Twitch
-        UserInfo? userInfo = await TwitchApiClient.FetchUserInfo(tokenResponse.AccessToken);
-        if (userInfo is null) return BadRequestResponse("Failed to fetch user information.");
-        
-        User user = new()
+        try
         {
-            Id = userInfo.Id,
-            Username = userInfo.Login,
-            DisplayName = userInfo.DisplayName,
-            Description = userInfo.Description,
-            ProfileImageUrl = userInfo.ProfileImageUrl,
-            OfflineImageUrl = userInfo.OfflineImageUrl,
-            BroadcasterType = userInfo.BroadcasterType,
-            AccessToken = tokenResponse.AccessToken,
-            RefreshToken = tokenResponse.RefreshToken,
-            TokenExpiry = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
-        };
-        
-        Helix client = TwitchApiClient.GetHelixClient(user);
-        GetUserChatColorResponse colors = await client.Chat.GetUserChatColorAsync([userInfo.Id]);
-        
-        string color = colors.Data.First().Color;
+            TokenResponse tokenResponse = await twitchAuthService.PollForToken(data.DeviceCode);
 
-        user.Color = string.IsNullOrEmpty(color)
-            ? "#9146FF"
-            : color;
+            UserInfo? userInfo = await TwitchApiClient.FetchUserInfo(tokenResponse.AccessToken);
+            if (userInfo is null) return BadRequestResponse("Failed to fetch user information.");
 
-        await dbContext.Users.Upsert(user)
-            .On(u => u.Id)
-            .WhenMatched((oldUser, newUser) => new()
+            User user = new()
             {
-                Username = newUser.Username,
-                DisplayName = newUser.DisplayName,
-                ProfileImageUrl = newUser.ProfileImageUrl,
-                OfflineImageUrl = newUser.OfflineImageUrl,
-                Color = newUser.Color,
-                BroadcasterType = newUser.BroadcasterType,
-                AccessToken = newUser.AccessToken,
-                RefreshToken = newUser.RefreshToken,
-                TokenExpiry = newUser.TokenExpiry
-            })
-            .RunAsync();
+                Id = userInfo.Id,
+                Username = userInfo.Login,
+                DisplayName = userInfo.DisplayName,
+                Description = userInfo.Description,
+                ProfileImageUrl = userInfo.ProfileImageUrl,
+                OfflineImageUrl = userInfo.OfflineImageUrl,
+                BroadcasterType = userInfo.BroadcasterType,
+                AccessToken = tokenResponse.AccessToken,
+                RefreshToken = tokenResponse.RefreshToken,
+                TokenExpiry = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn)
+            };
 
-        AfterLogin afterLogin = new();
-        await afterLogin.Invoke(user);
+            GetUserChatColorResponse? colors = await twitchApiService.BotGetUserChatColors([userInfo.Id]);
 
-        return Ok(new
+            string? color = colors?.Data.First().Color;
+
+            user.Color = string.IsNullOrEmpty(color)
+                ? "#9146FF"
+                : color;
+
+            await dbContext.Users.Upsert(user)
+                .On(u => u.Id)
+                .WhenMatched((oldUser, newUser) => new()
+                {
+                    Username = newUser.Username,
+                    DisplayName = newUser.DisplayName,
+                    ProfileImageUrl = newUser.ProfileImageUrl,
+                    OfflineImageUrl = newUser.OfflineImageUrl,
+                    Color = newUser.Color,
+                    BroadcasterType = newUser.BroadcasterType,
+                    AccessToken = newUser.AccessToken,
+                    RefreshToken = newUser.RefreshToken,
+                    TokenExpiry = newUser.TokenExpiry
+                })
+                .RunAsync();
+
+            AfterLogin afterLogin = new();
+            await afterLogin.Invoke(user);
+
+            return Ok(new
+            {
+                Message = "Moderator logged in successfully",
+                User = new UserWithTokenDto(user, tokenResponse),
+            });
+
+        }
+        catch (Exception e)
         {
-            Message = "Moderator logged in successfully",
-            User = new UserWithTokenDto(user, tokenResponse),
-        });
+            return BadRequestResponse(e.Message);
+        }
     }
 }
 

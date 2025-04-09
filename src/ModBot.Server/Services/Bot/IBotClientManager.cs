@@ -1,4 +1,3 @@
-using ModBot.Database.Models;
 using ModBot.Server.Providers.Twitch;
 
 namespace ModBot.Server.Services.Bot;

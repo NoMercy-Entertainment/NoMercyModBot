@@ -1,5 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore;
+using Microsoft.EntityFrameworkCore;
+using ModBot.Database;
 
 namespace ModBot.Server;
 
@@ -25,7 +27,10 @@ public static class Program
         Console.Title = "NoMercy Server";
 
         IWebHost app = CreateWebHostBuilder(new WebHostBuilder()).Build();
-
+        
+        using IServiceScope rootScope = app.Services.CreateScope();
+        rootScope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
+        
         return app.RunAsync();
     }
 

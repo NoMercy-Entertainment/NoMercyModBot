@@ -13,7 +13,7 @@ public record ChannelDto
     [JsonProperty("link")] public Uri Link { get; set; } = null!;
     
     [JsonProperty("broadcaster")] public UserDto Broadcaster { get; set; } = null!;
-    [JsonProperty("moderator")] public UserDto Moderator { get; set; } = null!;
+    // [JsonProperty("moderator")] public UserDto Moderator { get; set; } = null!;
     
     public ChannelDto(Channel channel)
     {
@@ -25,6 +25,6 @@ public record ChannelDto
         Link = new($"/channels/{channel.Broadcaster.Username}", UriKind.Relative);
         
         Broadcaster = new(channel.Broadcaster);
-        Moderator = new(channel.Moderator);
+        // Moderator = new(channel.Moderator);
     }
 }

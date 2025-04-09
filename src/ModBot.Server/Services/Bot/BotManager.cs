@@ -47,7 +47,8 @@ public class BotManager : IHostedService, IBotManager
     
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        await _tokenRefreshTimer.DisposeAsync();
+        if (_tokenRefreshTimer != null)
+            await _tokenRefreshTimer.DisposeAsync();
 
         // Stop the initialization queue
         await _initQueue.StopAsync(cancellationToken);
@@ -102,21 +103,13 @@ public class BotManager : IHostedService, IBotManager
         {
             apiClient.UpdateToken(user.AccessToken!);
         }
-
-        // Update bot client tokens
-        foreach (TwitchLibClient botClient in _botClients.Values
-                     .Where(c => c.User.Id == user.Id))
-        {
-            botClient.UpdateToken(user.AccessToken!);
-        }
     }
 
     private async Task InitializeExistingBots()
     {
         try
         {
-            using IServiceScope scope = _serviceProvider.CreateScope();
-            AppDbContext dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            AppDbContext dbContext = new();
 
             List<User> users = await dbContext.Users
                 .AsNoTracking()

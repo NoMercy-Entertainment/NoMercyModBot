@@ -40,8 +40,9 @@ export interface ChatEmote {
 }
 
 export interface BadgeSet {
-  set_id: string;
-  versions: Badge[];
+  [key: string]: {
+    [key: string]: Badge;
+  }
 }
 
 export interface Badge {
